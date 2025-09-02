@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Pandal - UtsavDarshan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>UtsavDarshan</h1>
+                <a href="{{ url_for('index') }}" class="btn">Home</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="register-form">
+            <h2>Register Your Pandal</h2>
+            <form action="{{ url_for('register_pandal') }}" method="post">
+                <label for="name">Pandal Name:</label>
+                <input type="text" id="name" name="name" required>
+
+                <label for="location">Location:</label>
+                <input type="text" id="location" name="location" required>
+
+                <label for="details">Details:</label>
+                <textarea id="details" name="details"></textarea>
+
+                <button type="submit" class="btn">Register</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

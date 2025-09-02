@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ pandal.name }} - UtsavDarshan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>UtsavDarshan</h1>
+                <a href="{{ url_for('index') }}" class="btn">Home</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="pandal-detail">
+            <h2>{{ pandal.name }}</h2>
+            <img src="{{ pandal.image }}" alt="{{ pandal.name }}">
+            <p><strong>History:</strong> {{ pandal.history }}</p>
+            <p><strong>Timings:</strong> {{ pandal.timings }}</p>
+            <p><strong>Location:</strong> {{ pandal.taluka }}</p>
+            <button class="btn route-btn" data-lat="{{ pandal.location.lat }}" data-lng="{{ pandal.location.lng }}">Get Directions</button>
+        </section>
+
+        <section class="map-section">
+            <h2>Location on Map</h2>
+            <div id="map" style="width: 100%; height: 400px;"></div>
+        </section>
+    </main>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example'; // Replace with your Mapbox access token
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [{{ pandal.location.lng }}, {{ pandal.location.lat }}],
+            zoom: 15
+        });
+
+        new mapboxgl.Marker()
+            .setLngLat([{{ pandal.location.lng }}, {{ pandal.location.lat }}])
+            .setPopup(new mapboxgl.Popup().setHTML(`<h3>{{ pandal.name }}</h3><p>{{ pandal.history }}</p>`))
+            .addTo(map);
+
+        // For route button
+        const routeBtn = document.querySelector('.route-btn');
+        routeBtn.addEventListener('click', () => {
+            const lat = routeBtn.getAttribute('data-lat');
+            const lng = routeBtn.getAttribute('data-lng');
+            const url = `https://www.google.com/maps?q=${lat},${lng}`;
+            window.open(url, '_blank');
+        });
+    </script>
+</body>
+</html>

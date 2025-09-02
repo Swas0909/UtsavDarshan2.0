@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UtsavDarshan - Locate Ganapati Pandals</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>UtsavDarshan</h1>
+                <button class="login-btn">Login</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h2>Welcome to UtsavDarshan</h2>
+            <p>Discover and locate the most magnificent Ganapati Pandals across Mumbai and Maharashtra. Our platform helps you find the best pandals, view their details, and navigate to them easily using interactive maps.</p>
+            <p><strong>Why UtsavDarshan?</strong> With the growing number of pandals each year, it's hard to keep track. We provide a centralized location to explore famous pandals, their history, timings, and exact locations. Whether you're a devotee or a tourist, find your way to the festivities effortlessly.</p>
+            <a href="{{ url_for('locations') }}" class="btn">Choose a Location</a>
+        </section>
+
+        <section class="pandals">
+            <h2>Famous Ganapati Pandals</h2>
+            <div class="cards">
+                {% for pandal in pandals %}
+                <div class="card">
+                    <img src="{{ pandal.image }}" alt="{{ pandal.name }}">
+                    <h3>{{ pandal.name }}</h3>
+                    <p>{{ pandal.history[:100] }}...</p>
+                    <p><strong>Timings:</strong> {{ pandal.timings }}</p>
+                    <a href="{{ url_for('pandal_detail', pandal_id=pandal.id) }}" class="btn">View Details</a>
+                    <button class="btn map-btn" data-lat="{{ pandal.location.lat }}" data-lng="{{ pandal.location.lng }}">View on Map</button>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <div class="feedback">
+                <h3>Feedback</h3>
+                <form action="{{ url_for('feedback') }}" method="post">
+                    <textarea name="feedback" placeholder="Share your feedback..."></textarea>
+                    <button type="submit" class="btn">Submit</button>
+                </form>
+            </div>
+            <div class="register">
+                <h3>Register Your Pandal</h3>
+                <form action="{{ url_for('register_pandal') }}" method="post">
+                    <input type="text" name="name" placeholder="Pandal Name" required>
+                    <input type="text" name="location" placeholder="Location" required>
+                    <textarea name="details" placeholder="Details"></textarea>
+                    <button type="submit" class="btn">Register</button>
+                </form>
+            </div>
+            <div class="contact">
+                <h3>Contact Support</h3>
+                <p>Email: support@utsavdarshan.com</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
