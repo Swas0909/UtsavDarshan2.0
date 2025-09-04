@@ -20,10 +20,20 @@
 
     <main>
         <section class="location-selection">
-            <h2>Choose a Taluka in Maharashtra</h2>
-            <div class="taluka-list">
+            <h2>Find Ganapati Pandals</h2>
+            <input type="text" id="search" placeholder="Search for Ganapatis or areas...">
+            <div class="pandal-list">
                 {% for taluka in talukas %}
-                <button class="taluka-btn" data-taluka="{{ taluka.name }}">{{ taluka.name }}</button>
+                {% for pandal in taluka.pandals %}
+                <div class="pandal-item" data-name="{{ pandal.name }}" data-taluka="{{ taluka.name }}">
+                    <img src="{{ pandal.image }}" alt="{{ pandal.name }}">
+                    <div class="pandal-info">
+                        <h3>{{ pandal.name }}</h3>
+                        <p>{{ taluka.name }}</p>
+                        <button class="btn directions-btn" data-lat="{{ pandal.location.lat }}" data-lng="{{ pandal.location.lng }}">Get Directions</button>
+                    </div>
+                </div>
+                {% endfor %}
                 {% endfor %}
             </div>
         </section>
@@ -35,35 +45,55 @@
     </main>
 
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example'; // Replace with your Mapbox access token
+        mapboxgl.accessToken = 'pk.eyJ1Ijoic3dhczEyMzQiLCJhIjoiY21mMnQ5Yjd4MGNsYjJqczVmYTBxd2doaSJ9.tL2Iht77YAWgCQCS5zgCLA';
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/streets-v11',
+            style: 'mapbox://styles/swas1234/cmf5owmxi00k001pl5u71czpt',
             center: [72.8777, 19.0760], // Mumbai center
             zoom: 10
         });
 
         const talukasData = JSON.parse('{{ talukas|tojson }}');
-        const talukaButtons = document.querySelectorAll('.taluka-btn');
-        talukaButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const talukaName = btn.getAttribute('data-taluka');
-                const selected = talukasData.find(t => t.name === talukaName);
-                if (selected) {
-                    // Add markers for selected.pandals
-                    selected.pandals.forEach(pandal => {
-                        new mapboxgl.Marker()
-                            .setLngLat([pandal.location.lng, pandal.location.lat])
-                            .setPopup(new mapboxgl.Popup().setHTML(`<h3>${pandal.name}</h3><p>${pandal.history}</p>`))
-                            .addTo(map);
-                    });
-                    // Fit map to markers
-                    if (selected.pandals.length > 0) {
-                        const bounds = new mapboxgl.LngLatBounds();
-                        selected.pandals.forEach(p => bounds.extend([p.location.lng, p.location.lat]));
-                        map.fitBounds(bounds, { padding: 20 });
-                    }
+        let allPandals = [];
+        talukasData.forEach(taluka => {
+            taluka.pandals.forEach(pandal => {
+                allPandals.push({ ...pandal, taluka: taluka.name });
+            });
+        });
+
+        // Add all markers initially
+        allPandals.forEach(pandal => {
+            new mapboxgl.Marker()
+                .setLngLat([pandal.location.lng, pandal.location.lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`<h3>${pandal.name}</h3><p>${pandal.history}</p>`))
+                .addTo(map);
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('search');
+        const pandalItems = document.querySelectorAll('.pandal-item');
+
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            pandalItems.forEach(item => {
+                const name = item.getAttribute('data-name').toLowerCase();
+                const taluka = item.getAttribute('data-taluka').toLowerCase();
+                if (name.includes(query) || taluka.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
                 }
+            });
+        });
+
+        // Directions buttons
+        const directionsButtons = document.querySelectorAll('.directions-btn');
+        directionsButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lat = btn.getAttribute('data-lat');
+                const lng = btn.getAttribute('data-lng');
+                const url = `https://www.google.com/maps?q=${lat},${lng}`;
+                window.open(url, '_blank');
             });
         });
     </script>

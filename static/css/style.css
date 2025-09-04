@@ -106,24 +106,60 @@ nav {
     text-align: center;
 }
 
-.taluka-list {
+#search {
+    width: 80%;
+    max-width: 400px;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.pandal-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
+    gap: 20px;
 }
 
-.taluka-btn {
-    padding: 10px 20px;
-    background-color: #007bff;
+.pandal-item {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 300px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.pandal-item img {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-right: 15px;
+}
+
+.pandal-info h3 {
+    margin: 0 0 5px 0;
+}
+
+.pandal-info p {
+    margin: 0 0 10px 0;
+}
+
+.directions-btn {
+    background-color: #ff6600;
     color: white;
     border: none;
+    padding: 6px 12px;
     border-radius: 5px;
     cursor: pointer;
 }
 
-.taluka-btn:hover {
-    background-color: #0056b3;
+.directions-btn:hover {
+    background-color: #e55a00;
 }
 
 /* Map Section */

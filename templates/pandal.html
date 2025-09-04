@@ -35,16 +35,16 @@
     </main>
 
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example'; // Replace with your Mapbox access token
+        mapboxgl.accessToken = 'pk.eyJ1Ijoic3dhczEyMzQiLCJhIjoiY21mMnQ5Yjd4MGNsYjJqczVmYTBxd2doaSJ9.tL2Iht77YAWgCQCS5zgCLA';
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/streets-v11',
-            center: [{{ pandal.location.lng }}, {{ pandal.location.lat }}],
+            style: 'mapbox://styles/swas1234/cmf5owmxi00k001pl5u71czpt',
+            center: [parseFloat('{{ pandal.location.lng }}'), parseFloat('{{ pandal.location.lat }}')],
             zoom: 15
         });
 
         new mapboxgl.Marker()
-            .setLngLat([{{ pandal.location.lng }}, {{ pandal.location.lat }}])
+            .setLngLat([parseFloat('{{ pandal.location.lng }}'), parseFloat('{{ pandal.location.lat }}')])
             .setPopup(new mapboxgl.Popup().setHTML(`<h3>{{ pandal.name }}</h3><p>{{ pandal.history }}</p>`))
             .addTo(map);
 
