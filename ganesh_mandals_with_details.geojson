@@ -1,0 +1,445 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8160304,
+          18.960484
+        ]
+      },
+      "properties": {
+        "name": "Om Tandav Sarvajanik Utsav Mandal",
+        "area": "Mumbai",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8506324,
+          19.2994122
+        ]
+      },
+      "properties": {
+        "name": "MIRA BHAYANDER CHA RAJADHIRAJ",
+        "area": "Mira Bhayander",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8275754,
+          18.9652538
+        ]
+      },
+      "properties": {
+        "name": "Kamathipura Cha Ganraj",
+        "area": "Kamathipura",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8262069,
+          18.9653897
+        ]
+      },
+      "properties": {
+        "name": "Kamathipura Cha Maharaja Estd.1953",
+        "area": "Kamathipura",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8255875,
+          18.9655058
+        ]
+      },
+      "properties": {
+        "name": "Kamathipura cha bappa barfani",
+        "area": "Kamathipura",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8429329,
+          18.9898517
+        ]
+      },
+      "properties": {
+        "name": "MUMBAI CHA RATHADHISH",
+        "area": "Mumbai",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8257136,
+          18.9671876
+        ]
+      },
+      "properties": {
+        "name": "Kamathipura Cha Chintamani",
+        "area": "Kamathipura",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8583943,
+          19.0291727
+        ]
+      },
+      "properties": {
+        "name": "GSB Ganpati Matunga, GSB Seva Mandal",
+        "area": "Matunga",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8270747,
+          18.956356
+        ]
+      },
+      "properties": {
+        "name": "Sutar Galli Cha Bappa Raja Estd.1961",
+        "area": "Girgaon",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8239321,
+          18.9595516
+        ]
+      },
+      "properties": {
+        "name": "Khetwadicha Lambodar",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8239421,
+          18.9594579
+        ]
+      },
+      "properties": {
+        "name": "KHETWADICHA SUKHAKARTA",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8234907,
+          18.9599162
+        ]
+      },
+      "properties": {
+        "name": "Khetwadicha Raja",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8250298,
+          18.9583581
+        ]
+      },
+      "properties": {
+        "name": "Khetwadicha Vighnaharta",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8242452,
+          18.9588081
+        ]
+      },
+      "properties": {
+        "name": "Khetwadi Cha Ganadhish",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.82259,
+          18.9594259
+        ]
+      },
+      "properties": {
+        "name": "Khetwadi Cha Chintamani 9th Galli",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.823459,
+          18.9592145
+        ]
+      },
+      "properties": {
+        "name": "Khetwadi Cha Moraya Estd.1949",
+        "area": "Khetwadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.835849,
+          18.961705
+        ]
+      },
+      "properties": {
+        "name": "Umarkhadi Cha Raja",
+        "area": "Umarkhadi",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8373453,
+          18.9880099
+        ]
+      },
+      "properties": {
+        "name": "Kalachowkicha Mahaganpati",
+        "area": "Kalachowki",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8356929,
+          18.9935582
+        ]
+      },
+      "properties": {
+        "name": "Raja Tejukayacha, Lalbaug",
+        "area": "Lalbaug",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8367373,
+          18.9906841
+        ]
+      },
+      "properties": {
+        "name": "Lalbaugcha Raja",
+        "area": "Lalbaug",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.8375099,
+          18.9942511
+        ]
+      },
+      "properties": {
+        "name": "Mumbai Cha Raja, Ganesh Galli",
+        "area": "Lalbaug",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.1421467,
+          19.2434826
+        ]
+      },
+      "properties": {
+        "name": "Kalyan Cha Mahaganpati",
+        "area": "Kalyan",
+        "type": "Sarvajanik Mandal",
+        "notes": "",
+        "city": "Mumbai",
+        "district": "Mumbai Suburban",
+        "state": "Maharashtra",
+        "country": "India"
+      }
+    }
+  ]
+}
