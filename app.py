@@ -21,6 +21,11 @@ app.config.from_object(config)
 # Allow OAuth over HTTP for development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
+# Set session configuration
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+
 # OAuth 2.0 client setup
 client = WebApplicationClient(config.GOOGLE_CLIENT_ID)
 
@@ -57,37 +62,49 @@ def get_google_provider_cfg():
 
 @app.route("/login")
 def login():
-    # Find out what URL to hit for Google login
-    google_provider_cfg = get_google_provider_cfg()
-    if not google_provider_cfg:
-        return "Error loading Google configuration", 500
+    try:
+        # Generate and store a new state parameter
+        state = os.urandom(16).hex()
+        session.clear()
+        session["oauth_state"] = state
         
-    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
+        # Find out what URL to hit for Google login
+        google_provider_cfg = get_google_provider_cfg()
+        if not google_provider_cfg:
+            return "Error loading Google configuration", 500
+            
+        authorization_endpoint = google_provider_cfg["authorization_endpoint"]
 
-    # Generate a random state value for CSRF protection
-    session["oauth_state"] = os.urandom(16).hex()
-
-    # Use library to construct the request for Google login
-    request_uri = client.prepare_request_uri(
-        authorization_endpoint,
-        redirect_uri="http://localhost:5000/login/callback",
-        scope=["openid", "email", "profile"],
-        state=session["oauth_state"]
-    )
-    return redirect(request_uri)
+        # Use library to construct the request for Google login
+        request_uri = client.prepare_request_uri(
+            authorization_endpoint,
+            redirect_uri="http://localhost:5000/login/callback",
+            scope=["openid", "email", "profile"],
+            state=state
+        )
+        return redirect(request_uri)
+    except Exception as e:
+        return f"Failed to initiate login: {str(e)}", 500
 
 @app.route("/login/callback")
 def callback():
     try:
         # Get authorization code and state from Google
         code = request.args.get("code")
-        state = request.args.get("state")
+        received_state = request.args.get("state")
+        stored_state = session.get("oauth_state")
+
+        # Debug logging
+        print(f"Received state: {received_state}")
+        print(f"Stored state: {stored_state}")
 
         # Verify state matches
-        if not state or state != session.get("oauth_state"):
-            return "State verification failed", 400
+        if not received_state or not stored_state or received_state != stored_state:
+            session.clear()
+            return "State verification failed. Please try logging in again.", 400
 
         if not code:
+            session.clear()
             return "Authorization code not received", 400
         
         # Find out what URL to hit for Google login
@@ -119,12 +136,23 @@ def callback():
         return f"Failed to process authentication: {str(e)}", 400
 
     # Parse the tokens
-    client.parse_request_body_response(json.dumps(token_response.json()))
+    try:
+        client.parse_request_body_response(json.dumps(token_response.json()))
+    except Exception as e:
+        session.clear()
+        return f"Failed to parse token response: {str(e)}", 400
 
     # Get user info from Google
-    userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
-    uri, headers, body = client.add_token(userinfo_endpoint)
-    userinfo_response = requests.get(uri, headers=headers, data=body)
+    try:
+        userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+        uri, headers, body = client.add_token(userinfo_endpoint)
+        userinfo_response = requests.get(uri, headers=headers, data=body)
+        if not userinfo_response.ok:
+            session.clear()
+            return f"Failed to get user info: {userinfo_response.json()}", 400
+    except Exception as e:
+        session.clear()
+        return f"Failed to get user info: {str(e)}", 400
 
     if userinfo_response.json().get("email_verified"):
         unique_id = userinfo_response.json()["sub"]
