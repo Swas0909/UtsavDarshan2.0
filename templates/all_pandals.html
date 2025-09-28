@@ -75,8 +75,28 @@
                 </div>
             </div>
         </div>
+
+        <!-- Map Modal -->
+        <div id="mapModal" class="modal">
+            <div class="modal-content map-modal-content">
+                <span class="close" id="closeMapModal">&times;</span>
+                <h2>All Pandal Locations</h2>
+                <div class="map-container">
+                    <div id="map"></div>
+                    <div class="map-controls">
+                        <div class="poi-toggles">
+                            <button class="poi-btn" data-type="hospital"><i class="fas fa-hospital"></i> Hospitals</button>
+                            <button class="poi-btn" data-type="police"><i class="fas fa-shield-alt"></i> Police</button>
+                            <button class="poi-btn" data-type="pharmacy"><i class="fas fa-prescription-bottle-medical"></i> Pharmacies</button>
+                            <button class="poi-btn" data-type="restaurant"><i class="fas fa-utensils"></i> Restaurants</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
+    <script src="{{ url_for('static', filename='js/maps.js') }}"></script>
     <script>
         // Function to show pandal details in modal
         function showPandalDetails(pandalId) {
@@ -141,6 +161,39 @@
                 }
             });
         });
+
+        // Map Modal Controls
+        const mapModal = document.getElementById('mapModal');
+        const viewMapBtn = document.getElementById('viewMapBtn');
+        const closeMapModal = document.getElementById('closeMapModal');
+
+        viewMapBtn.addEventListener('click', () => {
+            mapModal.style.display = 'block';
+            // Initialize map if not already initialized
+            if (!window.map) {
+                initMap();
+            } else {
+                // Trigger a resize event to fix the map display in modal
+                google.maps.event.trigger(window.map, 'resize');
+                
+                // Fit bounds to show all markers if they exist
+                if (window.markers && window.markers.length > 0) {
+                    const bounds = new google.maps.LatLngBounds();
+                    window.markers.forEach(marker => bounds.extend(marker.getPosition()));
+                    window.map.fitBounds(bounds);
+                }
+            }
+        });
+
+        closeMapModal.addEventListener('click', () => {
+            mapModal.style.display = 'none';
+        });
+
+        window.onclick = function(event) {
+            if (event.target === mapModal) {
+                mapModal.style.display = 'none';
+            }
+        };
     </script>
 </body>
 </html>
