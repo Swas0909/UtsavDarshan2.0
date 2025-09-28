@@ -19,8 +19,16 @@ badges = mongo.db.badges
 
 @app.route('/')
 def index():
+    # Get only 4 pandals for the homepage
+    pandal_list = list(pandals.find().limit(4))
+    return render_template('index.html', 
+                         pandals=pandal_list,
+                         GOOGLE_MAPS_API_KEY='AIzaSyACmm4cbgqxOWmSBa-qAQU69oXMJAR1Hw8')
+
+@app.route('/all-pandals')
+def all_pandals():
     pandal_list = list(pandals.find())
-    return render_template('index.html', pandals=pandal_list)
+    return render_template('all_pandals.html', pandals=pandal_list)
 
 @app.route('/locations')
 def locations():

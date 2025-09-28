@@ -176,6 +176,240 @@ nav {
     margin-top: 30px;
 }
 
+/* Featured cards on homepage */
+.featured-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.see-more-container {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+/* All Pandals page styles */
+.location-search {
+    background: #f5f5f5;
+    padding: 2rem 0;
+}
+
+.search-container {
+    display: flex;
+    gap: 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.location-input, .search-box {
+    flex: 1;
+    position: relative;
+}
+
+.location-input i, .search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+.location-input input, .search-box input {
+    width: 100%;
+    padding: 0.8rem 1rem 0.8rem 2.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.pandals-grid {
+    padding: 2rem 0;
+}
+
+.pandal-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    padding: 1rem;
+}
+
+.pandal-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.pandal-card:hover {
+    transform: translateY(-5px);
+}
+
+.pandal-card .card-image {
+    height: 200px;
+    overflow: hidden;
+}
+
+.pandal-card .card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pandal-card .card-title {
+    padding: 1rem;
+    text-align: center;
+}
+
+.pandal-card .card-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+/* Map Section Styles */
+.view-map-container {
+    text-align: center;
+    margin: 20px 0;
+    padding: 0 20px;
+}
+
+.map-modal-content {
+    width: 90% !important;
+    max-width: 1200px !important;
+    height: 80vh;
+    padding: 20px;
+}
+
+.map-container {
+    position: relative;
+    height: calc(100% - 60px);
+    margin-top: 20px;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.map-controls {
+    position: absolute;
+    top: 10px;
+    right: 30px;
+    z-index: 1;
+}
+
+.poi-toggles {
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 10px;
+}
+
+.poi-btn {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+}
+
+.poi-btn:hover {
+    background: #f5f5f5;
+}
+
+.poi-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Info Window Styles */
+.gm-style .gm-style-iw {
+    padding: 15px;
+}
+
+.info-window {
+    max-width: 300px;
+    padding: 10px;
+}
+
+.info-window h3 {
+    margin: 0 0 10px 0;
+    color: var(--primary-dark);
+    font-size: 1.2rem;
+}
+
+.info-window p {
+    margin: 5px 0;
+    font-size: 0.9rem;
+}
+
+.info-window h4 {
+    margin: 15px 0 10px;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.info-window h5 {
+    margin: 10px 0 5px;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.info-window ul {
+    margin: 5px 0;
+    padding-left: 20px;
+    list-style-type: none;
+}
+
+.info-window ul li {
+    margin: 3px 0;
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.info-window p {
+    margin: 5px 0;
+    font-size: 0.9rem;
+}
+
+.poi-list {
+    margin-top: 15px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+.poi-list h4 {
+    margin: 10px 0;
+    color: var(--primary-color);
+}
+
+.poi-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 0.9rem;
+}
+
+.poi-item i {
+    color: var(--primary-color);
+    width: 20px;
+}
+
 .card {
     background-color: var(--white);
     border-radius: 12px;

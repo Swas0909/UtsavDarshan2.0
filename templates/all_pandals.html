@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Pandals - UtsavDarshan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACmm4cbgqxOWmSBa-qAQU69oXMJAR1Hw8&libraries=places"></script>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1><i class="fas fa-om"></i> UtsavDarshan</h1>
+                <div class="nav-links">
+                    <a href="{{ url_for('index') }}">Home</a>
+                    <a href="{{ url_for('locations') }}">Locations</a>
+                    <a href="{{ url_for('register_pandal') }}">Register Pandal</a>
+                    <button class="login-btn"><i class="fas fa-user"></i> Login</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Location Search Section -->
+        <section class="location-search">
+            <div class="container">
+                <div class="search-container">
+                    <div class="location-input">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <input type="text" id="location-search" placeholder="Enter your location...">
+                    </div>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="pandal-search" placeholder="Search pandals...">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- View Map Button -->
+        <div class="view-map-container">
+            <button id="viewMapBtn" class="btn btn-primary">
+                <i class="fas fa-map-marked-alt"></i> View All Pandals on Map
+            </button>
+        </div>
+
+        <!-- Pandals Grid Section -->
+        <section class="pandals-grid">
+            <div class="container">
+                <div class="pandal-cards">
+                    {% for pandal in pandals %}
+                    <div class="pandal-card" onclick="showPandalDetails('{{ pandal._id }}')">
+                        <div class="card-image">
+                            <img src="{{ pandal.image if pandal.image else url_for('static', filename='images/default-pandal.jpg') }}" alt="{{ pandal.name }}">
+                        </div>
+                        <div class="card-title">
+                            <h3>{{ pandal.name }}</h3>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Pandal Details Modal -->
+        <div id="pandal-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="pandal-details">
+                    <!-- Details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Function to show pandal details in modal
+        function showPandalDetails(pandalId) {
+            fetch(`/api/pandals/${pandalId}`)
+                .then(response => response.json())
+                .then(pandal => {
+                    const modal = document.getElementById('pandal-modal');
+                    const detailsContainer = document.getElementById('pandal-details');
+                    
+                    detailsContainer.innerHTML = `
+                        <div class="pandal-full-details">
+                            <img src="${pandal.image || '/static/images/default-pandal.jpg'}" alt="${pandal.name}">
+                            <h2>${pandal.name}</h2>
+                            <p><strong>Address:</strong> ${pandal.address || 'Not available'}</p>
+                            <p><strong>Area:</strong> ${pandal.area || 'Not available'}</p>
+                            <p><strong>Timings:</strong> ${pandal.opening_time || '08:00'} - ${pandal.closing_time || '22:00'}</p>
+                            <button class="btn" onclick="getDirections(${pandal.lat}, ${pandal.lon})">
+                                <i class="fas fa-directions"></i> Get Directions
+                            </button>
+                        </div>
+                    `;
+                    
+                    modal.style.display = "block";
+                });
+        }
+
+        // Function to get directions
+        function getDirections(lat, lon) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`, '_blank');
+        }
+
+        // Close modal when clicking the X
+        document.querySelector('.close').onclick = function() {
+            document.getElementById('pandal-modal').style.display = "none";
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('pandal-modal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Location search functionality
+        document.getElementById('location-search').addEventListener('input', function(e) {
+            // Add location search functionality here
+            // You can use Google Places API for location autocomplete
+        });
+
+        // Pandal search functionality
+        document.getElementById('pandal-search').addEventListener('input', function(e) {
+            const searchText = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.pandal-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('h3').textContent.toLowerCase();
+                if (title.includes(searchText)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
