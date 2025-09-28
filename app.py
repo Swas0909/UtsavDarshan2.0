@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, jsonify, send_file
+from flask import Flask, render_template, redirect, url_for, request, jsonify, send_file, session
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 import config
@@ -10,12 +10,33 @@ import tempfile
 import os
 import requests
 from datetime import datetime
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from oauthlib.oauth2 import WebApplicationClient
+import json
+from models.user import User
 
 app = Flask(__name__)
 app.config.from_object(config)
 
+# Allow OAuth over HTTP for development
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+# OAuth 2.0 client setup
+client = WebApplicationClient(config.GOOGLE_CLIENT_ID)
+
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+
 # Initialize Nominatim geocoder with a custom user agent
 geolocator = Nominatim(user_agent="UtsavDarshan_" + datetime.now().strftime("%Y%m%d"))
+
+@login_manager.user_loader
+def load_user(user_id):
+    user_data = users.find_one({"_id": user_id})
+    if not user_data:
+        return None
+    return User(user_data)
 
 # MongoDB connection
 app.config["MONGO_URI"] = config.MONGO_URI
@@ -28,20 +49,130 @@ visits = mongo.db.visits
 ratings = mongo.db.ratings
 badges = mongo.db.badges
 
+def get_google_provider_cfg():
+    try:
+        return requests.get(config.GOOGLE_DISCOVERY_URL).json()
+    except:
+        return None
+
+@app.route("/login")
+def login():
+    # Find out what URL to hit for Google login
+    google_provider_cfg = get_google_provider_cfg()
+    if not google_provider_cfg:
+        return "Error loading Google configuration", 500
+        
+    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
+
+    # Generate a random state value for CSRF protection
+    session["oauth_state"] = os.urandom(16).hex()
+
+    # Use library to construct the request for Google login
+    request_uri = client.prepare_request_uri(
+        authorization_endpoint,
+        redirect_uri="http://localhost:5000/login/callback",
+        scope=["openid", "email", "profile"],
+        state=session["oauth_state"]
+    )
+    return redirect(request_uri)
+
+@app.route("/login/callback")
+def callback():
+    try:
+        # Get authorization code and state from Google
+        code = request.args.get("code")
+        state = request.args.get("state")
+
+        # Verify state matches
+        if not state or state != session.get("oauth_state"):
+            return "State verification failed", 400
+
+        if not code:
+            return "Authorization code not received", 400
+        
+        # Find out what URL to hit for Google login
+        google_provider_cfg = get_google_provider_cfg()
+        if not google_provider_cfg:
+            return "Error loading Google configuration", 500
+            
+        token_endpoint = google_provider_cfg["token_endpoint"]
+
+        # Prepare and send request to get tokens
+        token_url, headers, body = client.prepare_token_request(
+            token_endpoint,
+            authorization_response=request.url,
+            redirect_url="http://localhost:5000/login/callback",
+            code=code,
+        )
+        
+        token_response = requests.post(
+            token_url,
+            headers=headers,
+            data=body,
+            auth=(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET),
+        )
+        
+        if not token_response.ok:
+            return f"Failed to get token: {token_response.json()}", 400
+
+    except Exception as e:
+        return f"Failed to process authentication: {str(e)}", 400
+
+    # Parse the tokens
+    client.parse_request_body_response(json.dumps(token_response.json()))
+
+    # Get user info from Google
+    userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+    uri, headers, body = client.add_token(userinfo_endpoint)
+    userinfo_response = requests.get(uri, headers=headers, data=body)
+
+    if userinfo_response.json().get("email_verified"):
+        unique_id = userinfo_response.json()["sub"]
+        users_email = userinfo_response.json()["email"]
+        users_name = userinfo_response.json().get("given_name", "")
+        
+        # Create a user in our db with the information provided
+        user_data = {
+            "_id": unique_id,
+            "name": users_name,
+            "email": users_email,
+            "profile_pic": userinfo_response.json().get("picture")
+        }
+
+        # Save user if they don't exist
+        users.update_one(
+            {"_id": unique_id},
+            {"$set": user_data},
+            upsert=True
+        )
+
+        # Create user object for Flask-Login
+        user = User(user_data)
+
+        # Begin user session by logging the user in
+        login_user(user)
+
+        # Send user back to homepage
+        return redirect(url_for("index"))
+    else:
+        return "User email not verified by Google.", 400
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("index"))
+
 @app.route('/')
 def index():
     # Get only 4 pandals for the homepage
     pandal_list = list(pandals.find().limit(4))
-    return render_template('index.html', 
-                         pandals=pandal_list,
-                         GOOGLE_MAPS_API_KEY='AIzaSyACmm4cbgqxOWmSBa-qAQU69oXMJAR1Hw8')
+    return render_template('index.html', pandals=pandal_list)
 
 @app.route('/all-pandals')
 def all_pandals():
     pandal_list = list(pandals.find())
-    return render_template('all_pandals.html', 
-                         pandals=pandal_list,
-                         GOOGLE_MAPS_API_KEY=config.GOOGLE_MAPS_API_KEY)
+    return render_template('all_pandals.html', pandals=pandal_list)
 
 @app.route('/locations')
 def locations():
@@ -74,6 +205,7 @@ def pandal_detail(pandal_id):
         return redirect(url_for('index'))
 
 @app.route('/feedback', methods=['POST'])
+@login_required
 def feedback():
     if request.method == 'POST':
         user_feedback = request.form.get('feedback')
@@ -86,6 +218,7 @@ def feedback():
         return redirect(url_for('index'))
 
 @app.route('/register_pandal', methods=['GET', 'POST'])
+@login_required
 def register_pandal():
     if request.method == 'POST':
         address = f"{request.form.get('details', '')}, {request.form.get('location', '')}"
@@ -165,6 +298,7 @@ def api_get_pandal(pandal_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/pandals', methods=['POST'])
+@login_required
 def add_pandal():
     data = request.json
     pandal_id = pandals.insert_one({
@@ -327,6 +461,30 @@ def geocode_address():
 @app.route('/api/pandals/<pandal_id>/ratings', methods=['GET', 'POST'])
 def api_pandal_ratings(pandal_id):
     if request.method == 'GET':
+        rating_list = list(ratings.find({"pandal_id": pandal_id}))
+        for rating in rating_list:
+            rating['_id'] = str(rating['_id'])
+        return jsonify(rating_list)
+    elif request.method == 'POST':
+        if not current_user.is_authenticated:
+            return jsonify({"error": "Login required"}), 401
+            
+        data = request.json
+        rating_value = data.get('rating')
+        comment = data.get('comment')
+        
+        if not rating_value:
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        rating_data = {
+            "user_id": current_user.get_id(),
+            "pandal_id": pandal_id,
+            "rating": rating_value,
+            "comment": comment,
+            "created_at": mongo.db.command('serverStatus')['localTime']
+        }
+        result = ratings.insert_one(rating_data)
+        return jsonify({"success": True, "id": str(result.inserted_id)})
         rating_list = list(ratings.find({"pandal_id": pandal_id}))
         for rating in rating_list:
             rating['_id'] = str(rating['_id'])

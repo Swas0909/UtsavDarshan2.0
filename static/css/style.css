@@ -346,6 +346,29 @@ nav {
     padding: 10px;
 }
 
+/* Leaflet Map Styles */
+.leaflet-container {
+    height: 100%;
+    width: 100%;
+    border-radius: 8px;
+}
+
+.leaflet-popup-content-wrapper {
+    background-color: white;
+    color: var(--text-color);
+    border-radius: 8px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+}
+
+.leaflet-popup-content {
+    margin: 15px;
+    line-height: 1.5;
+}
+
+.info-window {
+    max-width: 300px;
+}
+
 .info-window h3 {
     margin: 0 0 10px 0;
     color: var(--primary-dark);
@@ -381,11 +404,6 @@ nav {
     color: var(--text-light);
 }
 
-.info-window p {
-    margin: 5px 0;
-    font-size: 0.9rem;
-}
-
 .poi-list {
     margin-top: 15px;
     border-top: 1px solid #eee;
@@ -409,6 +427,20 @@ nav {
     color: var(--primary-color);
     width: 20px;
 }
+
+.poi-marker {
+    background: none;
+    border: none;
+}
+
+.poi-marker i {
+    font-size: 20px;
+}
+
+.text-blue { color: #0066cc; }
+.text-purple { color: #6600cc; }
+.text-green { color: #00cc66; }
+.text-yellow { color: #cccc00; }
 
 /* Map Modal Specific Styles */
 .map-modal-content {
@@ -645,6 +677,12 @@ footer {
     display: flex;
     align-items: center;
     gap: 20px;
+}
+
+.user-name {
+    color: var(--primary-color);
+    font-weight: 500;
+    margin-right: 10px;
 }
 
 .nav-links a {

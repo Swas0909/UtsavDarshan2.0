@@ -1,26 +1,18 @@
 let map;
 let markers = [];
-let infoWindow;
 let poiMarkers = [];
 
 // Initialize the map
 function initMap() {
     // Default center (Mumbai)
-    const defaultCenter = { lat: 19.0760, lng: 72.8777 };
+    const defaultCenter = [19.0760, 72.8777];
     
-    map = new google.maps.Map(document.getElementById('map'), {
-        center: defaultCenter,
-        zoom: 12,
-        styles: [
-            {
-                featureType: 'poi',
-                elementType: 'labels',
-                stylers: [{ visibility: 'off' }]
-            }
-        ]
-    });
-
-    infoWindow = new google.maps.InfoWindow();
+    map = L.map('map').setView(defaultCenter, 12);
+    
+    // Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
     // Fetch pandals and add markers
     fetchPandals();
@@ -31,9 +23,9 @@ function initMap() {
             button.classList.toggle('active');
             if (button.classList.contains('active')) {
                 const poiType = button.dataset.type;
-                const activeMarker = markers.find(m => m.infoWindow.getMap());
+                const activeMarker = markers.find(m => m.isPopupOpen());
                 if (activeMarker) {
-                    fetchNearbyPOIs(activeMarker.position, poiType);
+                    fetchNearbyPOIs(activeMarker.getLatLng(), poiType);
                 }
             } else {
                 clearPOIMarkers(button.dataset.type);
@@ -57,33 +49,26 @@ function fetchPandals() {
 
 // Add a marker for a pandal
 function addPandalMarker(pandal) {
-    const position = { lat: pandal.lat, lng: pandal.lon };
-    const marker = new google.maps.Marker({
-        position: position,
-        map: map,
-        title: pandal.name,
-        icon: {
-            url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
-        }
-    });
+    const position = [pandal.lat, pandal.lon];
+    const marker = L.marker(position)
+        .addTo(map)
+        .bindPopup(createPandalPopupContent(pandal));
 
-    marker.position = position;
     markers.push(marker);
 
-    marker.addListener('click', () => {
-        showPandalInfo(marker, pandal);
+    marker.on('click', () => {
         // Clear existing POI markers
         clearAllPOIMarkers();
         // Fetch new POIs for active categories
         document.querySelectorAll('.poi-btn.active').forEach(button => {
-            fetchNearbyPOIs(position, button.dataset.type);
+            fetchNearbyPOIs(marker.getLatLng(), button.dataset.type);
         });
     });
 }
 
-// Show pandal information in info window
-function showPandalInfo(marker, pandal) {
-    const content = `
+// Create pandal popup content
+function createPandalPopupContent(pandal) {
+    return L.popup().setContent(`
         <div class="info-window">
             <h3>${pandal.name}</h3>
             <p><strong>Theme:</strong> ${pandal.theme || 'N/A'}</p>
@@ -97,10 +82,7 @@ function showPandalInfo(marker, pandal) {
                 </div>
             </div>
         </div>
-    `;
-
-    infoWindow.setContent(content);
-    infoWindow.open(map, marker);
+    `);
 }
 
 // Fetch nearby POIs using Overpass API
@@ -158,20 +140,20 @@ function displayPOIs(pois, type) {
     pois.forEach(poi => {
         if (poi.type === 'node' && poi.lat && poi.lon) {
             // Add marker
-            const marker = new google.maps.Marker({
-                position: { lat: poi.lat, lng: poi.lon },
-                map: map,
-                icon: getPOIIcon(type),
-                title: poi.tags.name || getPoiTypeLabel(type)
-            });
-            
+            const marker = L.marker([poi.lat, poi.lon], {
+                icon: L.divIcon({
+                    className: 'poi-marker',
+                    html: getPOIIcon(type)
+                })
+            }).addTo(map);
+
             marker.poiType = type;
             poiMarkers.push(marker);
             
             // Add to info window list
             poiHTML += `
                 <div class="poi-item">
-                    <i class="${getPOIIcon(type)}"></i>
+                    ${getPOIIcon(type)}
                     <span>${poi.tags.name || getPoiTypeLabel(type)}</span>
                 </div>
             `;
@@ -190,17 +172,18 @@ function displayPOIs(pois, type) {
 
 // Get POI icon based on type
 function getPOIIcon(type) {
+    // Using Font Awesome icons instead of Google Maps icons
     switch (type) {
         case 'hospital':
-            return 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+            return '<i class="fas fa-hospital text-blue"></i>';
         case 'police':
-            return 'https://maps.google.com/mapfiles/ms/icons/purple-dot.png';
+            return '<i class="fas fa-shield-alt text-purple"></i>';
         case 'pharmacy':
-            return 'https://maps.google.com/mapfiles/ms/icons/green-dot.png';
+            return '<i class="fas fa-prescription-bottle-alt text-green"></i>';
         case 'restaurant':
-            return 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+            return '<i class="fas fa-utensils text-yellow"></i>';
         default:
-            return 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+            return '<i class="fas fa-map-marker-alt text-blue"></i>';
     }
 }
 
@@ -224,7 +207,7 @@ function getPoiTypeLabel(type) {
 function clearPOIMarkers(type) {
     poiMarkers = poiMarkers.filter(marker => {
         if (marker.poiType === type) {
-            marker.setMap(null);
+            map.removeLayer(marker);
             return false;
         }
         return true;
@@ -233,7 +216,7 @@ function clearPOIMarkers(type) {
 
 // Clear all POI markers
 function clearAllPOIMarkers() {
-    poiMarkers.forEach(marker => marker.setMap(null));
+    poiMarkers.forEach(marker => map.removeLayer(marker));
     poiMarkers = [];
     if (document.getElementById('poi-results')) {
         document.getElementById('poi-results').innerHTML = '<p>Click POI buttons above to see nearby places</p>';
@@ -250,14 +233,13 @@ function initMapWhenVisible() {
     if (!window.map) {
         initMap();
     } else {
-        // Trigger a resize event to fix the map display in modal
-        google.maps.event.trigger(window.map, 'resize');
+        // Update map size when displayed in modal
+        map.invalidateSize();
         
         // Fit bounds to show all markers if they exist
         if (markers.length > 0) {
-            const bounds = new google.maps.LatLngBounds();
-            markers.forEach(marker => bounds.extend(marker.position));
-            window.map.fitBounds(bounds);
+            const group = L.featureGroup(markers);
+            map.fitBounds(group.getBounds());
         }
     }
 }
