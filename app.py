@@ -1,10 +1,21 @@
-from flask import Flask, render_template, redirect, url_for, request, jsonify
+from flask import Flask, render_template, redirect, url_for, request, jsonify, send_file
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 import config
+from geopy.distance import geodesic
+from geopy.geocoders import Nominatim
+import folium
+from folium import plugins
+import tempfile
+import os
+import requests
+from datetime import datetime
 
 app = Flask(__name__)
 app.config.from_object(config)
+
+# Initialize Nominatim geocoder with a custom user agent
+geolocator = Nominatim(user_agent="UtsavDarshan_" + datetime.now().strftime("%Y%m%d"))
 
 # MongoDB connection
 app.config["MONGO_URI"] = config.MONGO_URI
@@ -28,7 +39,9 @@ def index():
 @app.route('/all-pandals')
 def all_pandals():
     pandal_list = list(pandals.find())
-    return render_template('all_pandals.html', pandals=pandal_list)
+    return render_template('all_pandals.html', 
+                         pandals=pandal_list,
+                         GOOGLE_MAPS_API_KEY=config.GOOGLE_MAPS_API_KEY)
 
 @app.route('/locations')
 def locations():
@@ -75,19 +88,34 @@ def feedback():
 @app.route('/register_pandal', methods=['GET', 'POST'])
 def register_pandal():
     if request.method == 'POST':
+        address = f"{request.form.get('details', '')}, {request.form.get('location', '')}"
+        
+        # Try to geocode the address using Nominatim
+        try:
+            location = geolocator.geocode(address)
+            if location:
+                lat = location.latitude
+                lon = location.longitude
+                formatted_address = location.address
+            else:
+                lat = float(request.form.get('latitude', 0))
+                lon = float(request.form.get('longitude', 0))
+                formatted_address = address
+        except Exception:
+            lat = float(request.form.get('latitude', 0))
+            lon = float(request.form.get('longitude', 0))
+            formatted_address = address
+
         # Create a new pandal document
         new_pandal = {
             "name": request.form.get('name'),
             "theme": request.form.get('theme', 'Traditional'),
             "idol_type": request.form.get('idol_type', 'Eco-friendly'),
             "area": request.form.get('location'),
-            "address": request.form.get('details', ''),
+            "address": formatted_address,
             "location": {
                 "type": "Point",
-                "coordinates": [
-                    float(request.form.get('longitude', 0)),
-                    float(request.form.get('latitude', 0))
-                ]
+                "coordinates": [lon, lat]
             },
             "opening_time": request.form.get('opening_time', '08:00'),
             "closing_time": request.form.get('closing_time', '22:00'),
@@ -158,6 +186,7 @@ def get_nearby_pandals():
     lat = float(request.args.get("lat"))
     lon = float(request.args.get("lon"))
     radius = int(request.args.get("radius", 2000))  # meters
+    user_location = (lat, lon)
 
     nearby = pandals.find({
         "location": {
@@ -167,8 +196,133 @@ def get_nearby_pandals():
             }
         }
     })
-    results = [{"id": str(p["_id"]), "name": p["name"]} for p in nearby]
+
+    results = []
+    for p in nearby:
+        pandal_location = (p["location"]["coordinates"][1], p["location"]["coordinates"][0])
+        distance = geodesic(user_location, pandal_location).kilometers
+        
+        # Get estimated duration using OSRM
+        try:
+            osrm_url = f"https://router.project-osrm.org/route/v1/driving/{lon},{lat};{p['location']['coordinates'][0]},{p['location']['coordinates'][1]}?overview=false"
+            response = requests.get(osrm_url)
+            if response.status_code == 200:
+                route_data = response.json()
+                if route_data['routes']:
+                    duration = f"{int(route_data['routes'][0]['duration'] / 60)} mins"
+                else:
+                    duration = None
+            else:
+                duration = None
+        except:
+            duration = None
+
+        results.append({
+            "id": str(p["_id"]),
+            "name": p["name"],
+            "distance": round(distance, 2),
+            "duration": duration,
+            "lat": pandal_location[0],
+            "lon": pandal_location[1]
+        })
+
     return jsonify(results)
+
+@app.route('/map/pandal/<pandal_id>')
+def get_pandal_map(pandal_id):
+    try:
+        pandal = pandals.find_one({"_id": ObjectId(pandal_id)})
+        if not pandal:
+            return "Pandal not found", 404
+
+        # Create a folium map centered on the pandal
+        lat = pandal["location"]["coordinates"][1]
+        lon = pandal["location"]["coordinates"][0]
+        pandal_map = folium.Map(location=[lat, lon], zoom_start=15,
+                               tiles='OpenStreetMap')
+
+        # Add the pandal marker
+        folium.Marker(
+            [lat, lon],
+            popup=f"<b>{pandal['name']}</b><br>{pandal.get('address', '')}",
+            icon=folium.Icon(color='red', icon='info-sign')
+        ).add_to(pandal_map)
+
+        # Add nearby amenities using Overpass API
+        overpass_url = "http://overpass-api.de/api/interpreter"
+        overpass_query = f"""
+        [out:json][timeout:25];
+        (
+          node["amenity"="hospital"](around:1000,{lat},{lon});
+          node["amenity"="police"](around:1000,{lat},{lon});
+          node["amenity"="restaurant"](around:1000,{lat},{lon});
+        );
+        out body;
+        >;
+        out skel qt;
+        """
+        
+        response = requests.post(overpass_url, data={"data": overpass_query})
+        if response.status_code == 200:
+            data = response.json()
+            for element in data.get('elements', []):
+                if 'lat' in element and 'lon' in element:
+                    place_type = element.get('tags', {}).get('amenity')
+                    name = element.get('tags', {}).get('name', 'Unnamed')
+                    
+                    # Choose icon color based on place type
+                    icon_color = {
+                        'hospital': 'green',
+                        'police': 'blue',
+                        'restaurant': 'orange'
+                    }.get(place_type, 'gray')
+
+                    folium.Marker(
+                        [element['lat'], element['lon']],
+                        popup=f"<b>{name}</b><br>Type: {place_type}",
+                        icon=folium.Icon(color=icon_color, icon='info-sign')
+                    ).add_to(pandal_map)
+
+        # Add fullscreen option
+        plugins.Fullscreen().add_to(pandal_map)
+        
+        # Add location finder
+        plugins.LocateControl().add_to(pandal_map)
+        
+        # Add measurement control
+        plugins.MeasureControl().add_to(pandal_map)
+        
+        # Add minimap
+        plugins.MiniMap().add_to(pandal_map)
+        
+        # Save map to a temporary file
+        _, temp_path = tempfile.mkstemp(suffix='.html')
+        pandal_map.save(temp_path)
+        
+        return send_file(temp_path)
+    except Exception as e:
+        return str(e), 500
+
+@app.route('/api/geocode', methods=['POST'])
+def geocode_address():
+    try:
+        address = request.json.get('address')
+        if not address:
+            return jsonify({"error": "Address is required"}), 400
+
+        # Use Nominatim for geocoding
+        location = geolocator.geocode(address)
+        if location:
+            return jsonify({
+                "lat": location.latitude,
+                "lon": location.longitude,
+                "formatted_address": location.address
+            })
+        else:
+            return jsonify({"error": "Location not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/pandals/<pandal_id>/ratings', methods=['GET', 'POST'])
 def api_pandal_ratings(pandal_id):

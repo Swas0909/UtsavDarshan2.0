@@ -5,8 +5,143 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Pandals - UtsavDarshan</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map-styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACmm4cbgqxOWmSBa-qAQU69oXMJAR1Hw8&libraries=places"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-fullscreen@1.0.2/dist/Leaflet.fullscreen.min.js"></script>
+    <style>
+        #mapModal.modal {
+            padding: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+        }
+        
+        #mapModal .modal-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+        }
+
+        #mapModal .map-modal-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #mapModal h2 {
+            margin: 0;
+            padding: 15px;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .map-container {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .control-btn, .poi-btn {
+            padding: 8px 12px;
+            margin: 4px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .control-btn:hover, .poi-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .control-btn.active, .poi-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        #directions-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 300px;
+            max-height: 50%;
+            background: white;
+            z-index: 1000;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        @media (max-width: 768px) {
+            .map-controls {
+                bottom: 10px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                max-height: 30vh;
+                overflow-y: auto;
+            }
+
+            #directions-panel {
+                width: 100%;
+                height: 40vh;
+                bottom: 0;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -82,13 +217,41 @@
                 <span class="close" id="closeMapModal">&times;</span>
                 <h2>All Pandal Locations</h2>
                 <div class="map-container">
+                    <!-- Nearby Pandals List -->
+                    <div id="nearby-pandals-list"></div>
+                    
+                    <!-- Main Map -->
                     <div id="map"></div>
+                    
+                    <!-- Directions Panel -->
+                    <div id="directions-panel"></div>
+                    
+                    <!-- Map Controls -->
                     <div class="map-controls">
+                        <!-- POI Toggles -->
                         <div class="poi-toggles">
                             <button class="poi-btn" data-type="hospital"><i class="fas fa-hospital"></i> Hospitals</button>
                             <button class="poi-btn" data-type="police"><i class="fas fa-shield-alt"></i> Police</button>
                             <button class="poi-btn" data-type="pharmacy"><i class="fas fa-prescription-bottle-medical"></i> Pharmacies</button>
                             <button class="poi-btn" data-type="restaurant"><i class="fas fa-utensils"></i> Restaurants</button>
+                            <button class="poi-btn" data-type="parking"><i class="fas fa-parking"></i> Parking</button>
+                            <button class="poi-btn" data-type="bus_station"><i class="fas fa-bus"></i> Bus Stations</button>
+                        </div>
+                        
+                        <!-- Map View Controls -->
+                        <div class="map-view-controls">
+                            <button id="toggleHeatmap" class="control-btn">
+                                <i class="fas fa-fire"></i> Toggle Heatmap
+                            </button>
+                            <button id="toggleCluster" class="control-btn">
+                                <i class="fas fa-object-group"></i> Toggle Clustering
+                            </button>
+                            <button id="findNearby" class="control-btn">
+                                <i class="fas fa-location-crosshairs"></i> Find Nearby
+                            </button>
+                            <button id="toggleTraffic" class="control-btn">
+                                <i class="fas fa-car"></i> Show Traffic
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -123,9 +286,80 @@
                 });
         }
 
-        // Function to get directions
+        // Function to get directions using OSRM
         function getDirections(lat, lon) {
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`, '_blank');
+            const mapModal = document.getElementById('mapModal');
+            mapModal.style.display = 'block';
+
+            if (!window.map) initMap();
+
+            // Clear any existing POI markers
+            if (window.poiMarkers) {
+                poiMarkers.forEach(marker => map.removeLayer(marker));
+                poiMarkers = [];
+            }
+
+            // Get user's current location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const origin = [position.coords.longitude, position.coords.latitude];
+                        const destination = [lon, lat];
+
+                        // Using OSRM for directions
+                        fetch(`https://router.project-osrm.org/route/v1/driving/${origin};${destination}?overview=full&geometries=geojson`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.routes && data.routes.length > 0) {
+                                    const route = data.routes[0];
+                                    const coordinates = route.geometry.coordinates;
+                                    
+                                    // Convert coordinates to Leaflet format [lat, lng]
+                                    const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
+                                    
+                                    // Create route polyline
+                                    if (window.currentPandalRoute) {
+                                        map.removeLayer(window.currentPandalRoute);
+                                    }
+                                    
+                                    window.currentPandalRoute = L.polyline(latLngs, {
+                                        color: '#0066CC',
+                                        weight: 5,
+                                        opacity: 0.7
+                                    }).addTo(map);
+                                    
+                                    // Fit map to show the entire route
+                                    map.fitBounds(window.currentPandalRoute.getBounds());
+                                    
+                                    // Show directions in panel
+                                    const directionsPanel = document.getElementById('directions-panel');
+                                    directionsPanel.style.display = 'block';
+                                    directionsPanel.innerHTML = `
+                                        <div class="directions-info">
+                                            <h3>Route Information</h3>
+                                            <p>Distance: ${(route.distance / 1000).toFixed(2)} km</p>
+                                            <p>Duration: ${Math.round(route.duration / 60)} minutes</p>
+                                        </div>
+                                    `;
+                                    
+                                    // Close the pandal details modal
+                                    document.getElementById('pandal-modal').style.display = 'none';
+                                } else {
+                                    alert('Could not calculate directions. Please try again.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error getting directions:', error);
+                                alert('Error calculating directions. Please try again later.');
+                            });
+                    },
+                    error => {
+                        alert('Could not get your location. Please allow location access.');
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser.');
+            }
         }
 
         // Close modal when clicking the X
@@ -174,13 +408,11 @@
                 initMap();
             } else {
                 // Trigger a resize event to fix the map display in modal
-                google.maps.event.trigger(window.map, 'resize');
+                window.map.invalidateSize();
                 
                 // Fit bounds to show all markers if they exist
-                if (window.markers && window.markers.length > 0) {
-                    const bounds = new google.maps.LatLngBounds();
-                    window.markers.forEach(marker => bounds.extend(marker.getPosition()));
-                    window.map.fitBounds(bounds);
+                if (window.markerCluster && window.markerCluster.getLayers().length > 0) {
+                    map.fitBounds(window.markerCluster.getBounds());
                 }
             }
         });
