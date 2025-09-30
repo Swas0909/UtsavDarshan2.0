@@ -25,6 +25,8 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SECRET_KEY'] = config.SECRET_KEY  # Ensure secret key is set
 
 # OAuth 2.0 client setup
 client = WebApplicationClient(config.GOOGLE_CLIENT_ID)
@@ -65,8 +67,8 @@ def login():
     try:
         # Generate and store a new state parameter
         state = os.urandom(16).hex()
-        session.clear()
-        session["oauth_state"] = state
+        session.permanent = True  # Make session permanent
+        session["oauth_state"] = state  # Don't clear entire session
         
         # Find out what URL to hit for Google login
         google_provider_cfg = get_google_provider_cfg()
