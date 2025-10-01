@@ -199,8 +199,34 @@ def index():
 
 @app.route('/all-pandals')
 def all_pandals():
+    # Fetch all pandals and compute auxiliary data for filters and UI
     pandal_list = list(pandals.find())
-    return render_template('all_pandals.html', pandals=pandal_list)
+
+    # Build unique filter options
+    unique_areas = sorted({p.get('area') for p in pandal_list if p.get('area')})
+    unique_themes = sorted({p.get('theme') for p in pandal_list if p.get('theme')})
+
+    # Attach rating summary if ratings collection present
+    pandal_summaries = []
+    for p in pandal_list:
+        pid = str(p.get('_id'))
+        rating_docs = list(ratings.find({"pandal_id": pid}))
+        avg_rating = None
+        review_count = 0
+        if rating_docs:
+            review_count = len(rating_docs)
+            avg_rating = round(sum([float(r.get('rating', 0)) for r in rating_docs]) / review_count, 1)
+        p_copy = dict(p)
+        p_copy['avg_rating'] = avg_rating
+        p_copy['review_count'] = review_count
+        pandal_summaries.append(p_copy)
+
+    return render_template(
+        'all_pandals.html',
+        pandals=pandal_summaries,
+        areas=unique_areas,
+        themes=unique_themes
+    )
 
 @app.route('/locations')
 def locations():

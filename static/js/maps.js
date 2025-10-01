@@ -3,6 +3,7 @@ let markers = [];
 let poiMarkers = [];
 let markerCluster;
 let userLocation;
+let userMarkerPulse;
 let currentPandalRoute = null;
 let layerControl;
 let heatmapLayer;
@@ -125,8 +126,8 @@ function initMap() {
         }
     }).addTo(map);
 
-    // Get user's location
-    getUserLocation();
+    // Get user's location and watch for movement
+    getUserLocation(true);
     
     // Fetch pandals and add markers
     fetchPandals();
@@ -155,7 +156,7 @@ function initMap() {
 }
 
 // Get user's location
-function getUserLocation() {
+function getUserLocation(startWatch=false) {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -164,10 +165,16 @@ function getUserLocation() {
                     lng: position.coords.longitude
                 };
                 
-                // Add user marker
-                L.marker([userLocation.lat, userLocation.lng], {
-                    icon: icons.user,
-                    title: 'Your Location'
+                // Add/refresh animated user marker
+                if (userMarkerPulse) {
+                    map.removeLayer(userMarkerPulse);
+                }
+                userMarkerPulse = L.circleMarker([userLocation.lat, userLocation.lng], {
+                    radius: 8,
+                    color: '#1e88e5',
+                    weight: 2,
+                    fillColor: '#90caf9',
+                    fillOpacity: 0.7
                 }).addTo(map);
 
                 // Center map on user location
@@ -175,6 +182,13 @@ function getUserLocation() {
                 
                 // Update nearby pandals
                 updateNearbyPandals();
+
+                if (startWatch) {
+                    navigator.geolocation.watchPosition((pos) => {
+                        userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        if (userMarkerPulse) userMarkerPulse.setLatLng([userLocation.lat, userLocation.lng]);
+                    });
+                }
             },
             () => {
                 console.log('Error: The Geolocation service failed.');
@@ -233,7 +247,7 @@ function addPandalMarker(pandal) {
         </div>
     `;
 
-    marker.bindPopup(contentString);
+    marker.bindPopup(contentString, { autoPan: true, closeButton: true });
     marker.on('click', () => {
         if (currentPandalRoute) {
             map.removeLayer(currentPandalRoute);
@@ -298,6 +312,21 @@ function getDirections(lat, lon) {
         .catch(error => {
             console.error('Error getting directions:', error);
             alert('Error calculating directions. Please try again later.');
+            // Wire up search input to filter markers when present
+            const searchEl = document.getElementById('pandal-search');
+            if (searchEl) {
+                const filterMarkers = () => {
+                    const q = searchEl.value.toLowerCase();
+                    markerCluster.clearLayers();
+                    markers.forEach(m => {
+                        const name = (m.options.title || '').toLowerCase();
+                        if (!q || name.includes(q)) {
+                            markerCluster.addLayer(m);
+                        }
+                    });
+                };
+                searchEl.addEventListener('input', filterMarkers);
+            }
         });
 }
 
