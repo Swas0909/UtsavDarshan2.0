@@ -160,18 +160,83 @@
     </header>
 
     <main>
-        <!-- Location Search Section -->
-        <section class="location-search">
+        <!-- Enhanced Search and Filter Section -->
+        <section class="search-filter-section">
             <div class="container">
-                <div class="search-container">
-                    <div class="location-input">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <input type="text" id="location-search" placeholder="Enter your location...">
-                    </div>
-                    <div class="search-box">
+                <!-- Main Search Bar -->
+                <div class="main-search-container">
+                    <div class="search-input-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="pandal-search" placeholder="Search pandals...">
+                        <input type="text" id="pandal-search" placeholder="Search for pandals, areas, themes..." autocomplete="off">
+                        <div id="search-suggestions" class="search-suggestions"></div>
                     </div>
+                </div>
+                
+                <!-- Location and Filter Row -->
+                <div class="filter-row">
+                    <!-- Location Toggle -->
+                    <div class="location-toggle">
+                        <button id="location-btn" class="location-btn" onclick="toggleLocationMode()">
+                            <i class="fas fa-location-crosshairs"></i>
+                            <span id="location-text">Near Me</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Filters -->
+                    <div class="filters-container">
+                        <!-- Area Filter -->
+                        <div class="filter-group">
+                            <select id="area-filter" class="filter-select">
+                                <option value="">All Areas</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Theme Filter -->
+                        <div class="filter-group">
+                            <select id="theme-filter" class="filter-select">
+                                <option value="">All Themes</option>
+                                <option value="Traditional">Traditional</option>
+                                <option value="Modern">Modern</option>
+                                <option value="Eco-friendly">Eco-friendly</option>
+                                <option value="Cultural">Cultural</option>
+                                <option value="Historical">Historical</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Rating Filter -->
+                        <div class="filter-group">
+                            <select id="rating-filter" class="filter-select">
+                                <option value="">All Ratings</option>
+                                <option value="4">4+ Stars</option>
+                                <option value="3">3+ Stars</option>
+                                <option value="2">2+ Stars</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Sort By -->
+                        <div class="filter-group">
+                            <select id="sort-filter" class="filter-select">
+                                <option value="name">Sort by Name</option>
+                                <option value="distance">Sort by Distance</option>
+                                <option value="rating">Sort by Rating</option>
+                                <option value="popularity">Most Popular</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Clear Filters -->
+                        <button id="clear-filters" class="clear-filters-btn">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Active Filters Display -->
+                <div id="active-filters" class="active-filters"></div>
+                
+                <!-- Results Count -->
+                <div class="results-info">
+                    <span id="results-count">Loading pandals...</span>
+                    <span id="location-status" class="location-status"></span>
                 </div>
             </div>
         </section>
@@ -183,27 +248,40 @@
             </button>
         </div>
 
-        <!-- Pandals Grid Section -->
+        <!-- Enhanced Pandals Grid Section -->
         <section class="pandals-grid">
             <div class="container">
-                <div class="pandal-cards">
-                    {% for pandal in pandals %}
-                    <div class="pandal-card" onclick="showPandalDetails('{{ pandal._id }}')">
-                        <div class="card-image">
-                            <img src="{{ pandal.image if pandal.image else url_for('static', filename='images/default-pandal.jpg') }}" alt="{{ pandal.name }}">
-                        </div>
-                        <div class="card-title">
-                            <h3>{{ pandal.name }}</h3>
-                        </div>
+                <!-- Loading State -->
+                <div id="loading-state" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading pandals...</p>
+                </div>
+                
+                <!-- No Results State -->
+                <div id="no-results" class="no-results" style="display: none;">
+                    <div class="no-results-icon">
+                        <i class="fas fa-search"></i>
                     </div>
-                    {% endfor %}
+                    <h3>No pandals found</h3>
+                    <p>Try adjusting your search criteria or clearing filters</p>
+                    <button onclick="clearAllFilters()" class="btn btn-primary">Clear Filters</button>
+                </div>
+                
+                <!-- Pandals Cards Container -->
+                <div id="pandal-cards-container" class="pandal-cards">
+                    <!-- Cards will be populated by JavaScript -->
+                </div>
+                
+                <!-- Load More Button -->
+                <div class="load-more-container" style="display: none;">
+                    <button id="load-more-btn" class="btn btn-secondary">Load More Pandals</button>
                 </div>
             </div>
         </section>
 
-        <!-- Pandal Details Modal -->
+        <!-- Enhanced Pandal Details Modal -->
         <div id="pandal-modal" class="modal">
-            <div class="modal-content">
+            <div class="modal-content pandal-modal-content">
                 <span class="close">&times;</span>
                 <div id="pandal-details">
                     <!-- Details will be loaded here -->
@@ -260,30 +338,593 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/maps.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pandal-search.js') }}"></script>
     <script>
-        // Function to show pandal details in modal
-        function showPandalDetails(pandalId) {
-            fetch(`/api/pandals/${pandalId}`)
-                .then(response => response.json())
-                .then(pandal => {
-                    const modal = document.getElementById('pandal-modal');
-                    const detailsContainer = document.getElementById('pandal-details');
+        // Global variables
+        let pandalSearch;
+        let userLocation = null;
+        let allPandals = [];
+        let filteredPandals = [];
+        let isLocationMode = false;
+        
+        // Initialize everything when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing pandal search system...');
+            
+            // Initialize the pandal search system
+            initializePandalSearch();
+            
+            // Load initial pandals
+            loadPandals();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Initialize map modal controls
+            initializeMapModal();
+        });
+        
+        // Initialize map modal functionality
+        function initializeMapModal() {
+            const mapModal = document.getElementById('mapModal');
+            const viewMapBtn = document.getElementById('viewMapBtn');
+            const closeMapModal = document.getElementById('closeMapModal');
+
+            if (!mapModal || !viewMapBtn || !closeMapModal) {
+                console.error('Map modal elements not found');
+                return;
+            }
+
+            // Centralized function to close map modal
+            function closeMapModalFunction() {
+                console.log('Closing map modal...');
+                mapModal.style.display = 'none';
+                
+                // Clean up any routes or directions
+                if (window.currentPandalRoute && window.map) {
+                    window.map.removeLayer(window.currentPandalRoute);
+                    window.currentPandalRoute = null;
+                    console.log('Cleaned up route layer');
+                }
+                
+                // Hide directions panel
+                const directionsPanel = document.getElementById('directions-panel');
+                if (directionsPanel) {
+                    directionsPanel.style.display = 'none';
+                    console.log('Hidden directions panel');
+                }
+                
+                // Reset body overflow
+                document.body.style.overflow = 'auto';
+            }
+
+            // Make closeMapModalFunction globally accessible
+            window.closeMapModalFunction = closeMapModalFunction;
+
+            // View Map Button Handler
+            if (viewMapBtn) {
+                viewMapBtn.addEventListener('click', () => {
+                    console.log('View Map button clicked');
+                    mapModal.style.display = 'block';
                     
-                    detailsContainer.innerHTML = `
-                        <div class="pandal-full-details">
-                            <img src="${pandal.image || '/static/images/default-pandal.jpg'}" alt="${pandal.name}">
-                            <h2>${pandal.name}</h2>
-                            <p><strong>Address:</strong> ${pandal.address || 'Not available'}</p>
-                            <p><strong>Area:</strong> ${pandal.area || 'Not available'}</p>
-                            <p><strong>Timings:</strong> ${pandal.opening_time || '08:00'} - ${pandal.closing_time || '22:00'}</p>
-                            <button class="btn" onclick="getDirections(${pandal.lat}, ${pandal.lon})">
-                                <i class="fas fa-directions"></i> Get Directions
+                    // Always refresh the map when opened
+                    setTimeout(() => {
+                        // Initialize map if not already initialized
+                        if (!window.map) {
+                            console.log('Initializing map...');
+                            if (typeof window.initMap === 'function') {
+                                window.initMap();
+                            } else {
+                                console.error('initMap function not found');
+                                alert('Map initialization failed. Please refresh the page.');
+                                return;
+                            }
+                        } else {
+                            console.log('Map already initialized, refreshing...');
+                            if (window.map && window.map.invalidateSize) {
+                                window.map.invalidateSize();
+                                
+                                // Force refresh of pandals on map
+                                console.log('Force refreshing pandals on map...');
+                                
+                                // Clear existing markers first
+                                if (window.markerCluster) {
+                                    window.markerCluster.clearLayers();
+                                }
+                                if (window.markers) {
+                                    window.markers.forEach(marker => {
+                                        if (window.map.hasLayer(marker)) {
+                                            window.map.removeLayer(marker);
+                                        }
+                                    });
+                                    window.markers = [];
+                                }
+                                
+                                // Fetch pandals again
+                                if (typeof window.fetchPandals === 'function') {
+                                    window.fetchPandals();
+                                } else {
+                                    console.error('fetchPandals function not found');
+                                }
+                            }
+                        }
+                    }, 100);
+                });
+            }
+
+            // Close Map Button Handler
+            if (closeMapModal) {
+                closeMapModal.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.log('Close map modal clicked');
+                    closeMapModalFunction();
+                });
+            }
+
+            // Close map modal when clicking outside
+            mapModal.addEventListener('click', function(event) {
+                if (event.target === mapModal) {
+                    console.log('Map modal background clicked, closing modal');
+                    closeMapModalFunction();
+                }
+            });
+            
+            // Add escape key handler for map modal
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && mapModal.style.display === 'block') {
+                    console.log('Escape key pressed, closing map modal');
+                    closeMapModalFunction();
+                }
+            });
+        }
+
+        // Initialize the pandal search system
+        async function initializePandalSearch() {
+            try {
+                // Check if user has granted location permission before
+                const permissionStatus = await navigator.permissions.query({name: 'geolocation'});
+                if (permissionStatus.state === 'granted') {
+                    getUserLocation();
+                }
+            } catch (error) {
+                console.log('Geolocation permission check not supported');
+            }
+        }
+        
+        // Load pandals from server
+        async function loadPandals() {
+            try {
+                showLoadingState();
+                const response = await fetch('/api/pandals/enhanced');
+                const data = await response.json();
+                
+                allPandals = data.pandals || [];
+                filteredPandals = [...allPandals];
+                
+                // Populate area filter options
+                populateAreaFilter(data.areas || []);
+                
+                // Render pandals
+                renderPandals(filteredPandals);
+                updateResultsCount();
+                
+                hideLoadingState();
+            } catch (error) {
+                console.error('Error loading pandals:', error);
+                showErrorState();
+            }
+        }
+        
+        // Setup all event listeners
+        function setupEventListeners() {
+            // Search input
+            const searchInput = document.getElementById('pandal-search');
+            searchInput.addEventListener('input', debounce(handleSearch, 300));
+            searchInput.addEventListener('focus', showSearchSuggestions);
+            
+            // Filter selects
+            ['area-filter', 'theme-filter', 'rating-filter', 'sort-filter'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyFilters);
+            });
+            
+            // Clear filters button
+            document.getElementById('clear-filters').addEventListener('click', clearAllFilters);
+            
+            // Location button
+            document.getElementById('location-btn').addEventListener('click', toggleLocationMode);
+            
+            // Modal close handlers
+            setupModalHandlers();
+        }
+        
+        // Toggle location mode
+        async function toggleLocationMode() {
+            const locationBtn = document.getElementById('location-btn');
+            const locationText = document.getElementById('location-text');
+            const locationStatus = document.getElementById('location-status');
+            
+            if (!isLocationMode) {
+                // Enable location mode
+                try {
+                    locationBtn.classList.add('loading');
+                    locationText.textContent = 'Getting location...';
+                    
+                    await getUserLocation();
+                    
+                    if (userLocation) {
+                        isLocationMode = true;
+                        locationBtn.classList.add('active');
+                        locationBtn.classList.remove('loading');
+                        locationText.textContent = 'Near Me';
+                        locationStatus.textContent = `Showing pandals near you`;
+                        
+                        // Apply location-based sorting
+                        await applyLocationSorting();
+                    } else {
+                        throw new Error('Location not available');
+                    }
+                } catch (error) {
+                    locationBtn.classList.remove('loading');
+                    locationText.textContent = 'Location Failed';
+                    alert('Unable to get your location. Please enable location services and try again.');
+                }
+            } else {
+                // Disable location mode
+                isLocationMode = false;
+                locationBtn.classList.remove('active');
+                locationText.textContent = 'Near Me';
+                locationStatus.textContent = '';
+                
+                // Reset to default sorting
+                applyFilters();
+            }
+        }
+        
+        // Get user's current location
+        function getUserLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported'));
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        resolve(userLocation);
+                    },
+                    (error) => {
+                        reject(error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 300000 // 5 minutes
+                    }
+                );
+            });
+        }
+        
+        // Apply location-based sorting
+        async function applyLocationSorting() {
+            if (!userLocation || !allPandals.length) return;
+            
+            // Calculate distances for all pandals
+            const pandalswithDistance = allPandals.map(pandal => {
+                if (pandal.lat && pandal.lon) {
+                    const distance = calculateDistance(
+                        userLocation.lat, userLocation.lng,
+                        pandal.lat, pandal.lon
+                    );
+                    return { ...pandal, distance: distance };
+                }
+                return { ...pandal, distance: Infinity };
+            });
+            
+            // Sort by distance
+            pandalswithDistance.sort((a, b) => a.distance - b.distance);
+            
+            allPandals = pandalswithDistance;
+            applyFilters();
+        }
+        
+        // Calculate distance between two points using Haversine formula
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in kilometers
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // Handle search input
+        function handleSearch(event) {
+            const query = event.target.value.toLowerCase().trim();
+            applyFilters();
+        }
+        
+        // Apply all active filters
+        function applyFilters() {
+            const searchQuery = document.getElementById('pandal-search').value.toLowerCase().trim();
+            const areaFilter = document.getElementById('area-filter').value;
+            const themeFilter = document.getElementById('theme-filter').value;
+            const ratingFilter = document.getElementById('rating-filter').value;
+            const sortFilter = document.getElementById('sort-filter').value;
+            
+            // Start with all pandals
+            filteredPandals = allPandals.filter(pandal => {
+                // Search filter
+                const matchesSearch = !searchQuery || 
+                    pandal.name.toLowerCase().includes(searchQuery) ||
+                    (pandal.area && pandal.area.toLowerCase().includes(searchQuery)) ||
+                    (pandal.theme && pandal.theme.toLowerCase().includes(searchQuery)) ||
+                    (pandal.address && pandal.address.toLowerCase().includes(searchQuery));
+                
+                // Area filter
+                const matchesArea = !areaFilter || pandal.area === areaFilter;
+                
+                // Theme filter
+                const matchesTheme = !themeFilter || pandal.theme === themeFilter;
+                
+                // Rating filter
+                const matchesRating = !ratingFilter || (pandal.average_rating && pandal.average_rating >= parseFloat(ratingFilter));
+                
+                return matchesSearch && matchesArea && matchesTheme && matchesRating;
+            });
+            
+            // Apply sorting
+            applySorting(sortFilter);
+            
+            // Render results
+            renderPandals(filteredPandals);
+            updateResultsCount();
+            updateActiveFilters();
+        }
+        
+        // Apply sorting to filtered pandals
+        function applySorting(sortBy) {
+            switch(sortBy) {
+                case 'distance':
+                    if (isLocationMode && userLocation) {
+                        filteredPandals.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+                    }
+                    break;
+                case 'rating':
+                    filteredPandals.sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0));
+                    break;
+                case 'popularity':
+                    filteredPandals.sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
+                    break;
+                case 'name':
+                default:
+                    filteredPandals.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+            }
+        }
+        
+        // Render pandals in the grid
+        function renderPandals(pandals) {
+            const container = document.getElementById('pandal-cards-container');
+            
+            if (pandals.length === 0) {
+                container.style.display = 'none';
+                document.getElementById('no-results').style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'grid';
+            document.getElementById('no-results').style.display = 'none';
+            
+            container.innerHTML = pandals.map(pandal => createPandalCard(pandal)).join('');
+        }
+        
+        // Create HTML for a single pandal card
+        function createPandalCard(pandal) {
+            const distanceInfo = isLocationMode && pandal.distance !== undefined && pandal.distance !== Infinity
+                ? `<div class="distance-info"><i class="fas fa-map-marker-alt"></i> ${pandal.distance.toFixed(1)} km away</div>`
+                : '';
+            
+            const ratingInfo = pandal.average_rating
+                ? `<div class="rating-info"><i class="fas fa-star"></i> ${pandal.average_rating.toFixed(1)} (${pandal.rating_count || 0} reviews)</div>`
+                : '<div class="rating-info"><i class="fas fa-star-o"></i> No ratings yet</div>';
+            
+            const themebadge = pandal.theme
+                ? `<div class="theme-badge">${pandal.theme}</div>`
+                : '';
+            
+            return `
+                <div class="pandal-card enhanced-card" onclick="showPandalDetails('${pandal._id || pandal.id}')">
+                    <div class="card-image">
+                        <img src="${pandal.image || '/static/images/default-pandal.jpg'}" alt="${pandal.name}" loading="lazy">
+                        ${themeBadge}
+                        ${distanceInfo}
+                    </div>
+                    <div class="card-content">
+                        <h3 class="card-title">${pandal.name}</h3>
+                        <div class="card-location">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>${pandal.area || 'Location not specified'}</span>
+                        </div>
+                        ${ratingInfo}
+                        <div class="card-timings">
+                            <i class="fas fa-clock"></i>
+                            <span>${pandal.opening_time || '08:00'} - ${pandal.closing_time || '22:00'}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="card-btn primary" onclick="event.stopPropagation(); showPandalDetails('${pandal._id || pandal.id}')">
+                                <i class="fas fa-info-circle"></i> Details
+                            </button>
+                            <button class="card-btn secondary" onclick="event.stopPropagation(); getDirections(${pandal.lat}, ${pandal.lon})">
+                                <i class="fas fa-directions"></i> Directions
                             </button>
                         </div>
-                    `;
-                    
-                    modal.style.display = "block";
-                });
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Populate area filter dropdown
+        function populateAreaFilter(areas) {
+            const areaFilter = document.getElementById('area-filter');
+            const currentValue = areaFilter.value;
+            
+            // Clear existing options except the first one
+            areaFilter.innerHTML = '<option value="">All Areas</option>';
+            
+            areas.forEach(area => {
+                const option = document.createElement('option');
+                option.value = area;
+                option.textContent = area;
+                areaFilter.appendChild(option);
+            });
+            
+            // Restore previous selection if it exists
+            if (currentValue && areas.includes(currentValue)) {
+                areaFilter.value = currentValue;
+            }
+        }
+        
+        // Update results count display
+        function updateResultsCount() {
+            const countElement = document.getElementById('results-count');
+            const count = filteredPandals.length;
+            const total = allPandals.length;
+            
+            if (count === total) {
+                countElement.textContent = `Showing all ${total} pandals`;
+            } else {
+                countElement.textContent = `Showing ${count} of ${total} pandals`;
+            }
+        }
+        
+        // Update active filters display
+        function updateActiveFilters() {
+            const activeFiltersContainer = document.getElementById('active-filters');
+            const activeFilters = [];
+            
+            // Check each filter
+            const searchQuery = document.getElementById('pandal-search').value.trim();
+            const areaFilter = document.getElementById('area-filter').value;
+            const themeFilter = document.getElementById('theme-filter').value;
+            const ratingFilter = document.getElementById('rating-filter').value;
+            
+            if (searchQuery) activeFilters.push({ type: 'search', value: searchQuery, label: `Search: "${searchQuery}"` });
+            if (areaFilter) activeFilters.push({ type: 'area', value: areaFilter, label: `Area: ${areaFilter}` });
+            if (themeFilter) activeFilters.push({ type: 'theme', value: themeFilter, label: `Theme: ${themeFilter}` });
+            if (ratingFilter) activeFilters.push({ type: 'rating', value: ratingFilter, label: `${ratingFilter}+ Stars` });
+            if (isLocationMode) activeFilters.push({ type: 'location', value: 'location', label: 'Near Me' });
+            
+            if (activeFilters.length === 0) {
+                activeFiltersContainer.style.display = 'none';
+                return;
+            }
+            
+            activeFiltersContainer.style.display = 'flex';
+            activeFiltersContainer.innerHTML = activeFilters.map(filter => `
+                <div class="active-filter-tag">
+                    <span>${filter.label}</span>
+                    <button onclick="removeFilter('${filter.type}', '${filter.value}')" class="remove-filter">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        // Remove a specific filter
+        function removeFilter(type, value) {
+            switch(type) {
+                case 'search':
+                    document.getElementById('pandal-search').value = '';
+                    break;
+                case 'area':
+                    document.getElementById('area-filter').value = '';
+                    break;
+                case 'theme':
+                    document.getElementById('theme-filter').value = '';
+                    break;
+                case 'rating':
+                    document.getElementById('rating-filter').value = '';
+                    break;
+                case 'location':
+                    toggleLocationMode(); // This will disable location mode
+                    return; // Don't call applyFilters as toggleLocationMode will handle it
+            }
+            applyFilters();
+        }
+        
+        // Clear all filters
+        function clearAllFilters() {
+            document.getElementById('pandal-search').value = '';
+            document.getElementById('area-filter').value = '';
+            document.getElementById('theme-filter').value = '';
+            document.getElementById('rating-filter').value = '';
+            document.getElementById('sort-filter').value = 'name';
+            
+            if (isLocationMode) {
+                toggleLocationMode();
+            } else {
+                applyFilters();
+            }
+        }
+        
+        // Utility function for debouncing
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Show loading state
+        function showLoadingState() {
+            document.getElementById('loading-state').style.display = 'block';
+            document.getElementById('pandal-cards-container').style.display = 'none';
+            document.getElementById('no-results').style.display = 'none';
+        }
+        
+        // Hide loading state
+        function hideLoadingState() {
+            document.getElementById('loading-state').style.display = 'none';
+        }
+        
+        // Show error state
+        function showErrorState() {
+            hideLoadingState();
+            document.getElementById('results-count').textContent = 'Error loading pandals. Please refresh the page.';
+        }
+        
+        // Setup modal event handlers
+        function setupModalHandlers() {
+            // Close modal when clicking the X
+            document.querySelector('#pandal-modal .close').onclick = function() {
+                document.getElementById('pandal-modal').style.display = "none";
+                document.body.style.overflow = 'auto'; // Restore scrolling
+            }
+            
+            // Close modal when clicking outside
+            window.onclick = function(event) {
+                const modal = document.getElementById('pandal-modal');
+                const mapModal = document.getElementById('mapModal');
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                    document.body.style.overflow = 'auto'; // Restore scrolling
+                }
+                if (event.target === mapModal) {
+                    mapModal.style.display = 'none';
+                }
+            }
         }
 
         // Function to get directions using OSRM
@@ -362,70 +1003,358 @@
             }
         }
 
-        // Close modal when clicking the X
-        document.querySelector('.close').onclick = function() {
-            document.getElementById('pandal-modal').style.display = "none";
+        // Enhanced function to show pandal details in BookMyShow-style modal
+        function showPandalDetails(pandalId) {
+            fetch(`/api/pandals/${pandalId}`)
+                .then(response => response.json())
+                .then(pandal => {
+                    const modal = document.getElementById('pandal-modal');
+                    const detailsContainer = document.getElementById('pandal-details');
+                    
+                    const ratingStars = pandal.average_rating ? 
+                        generateStarRating(pandal.average_rating) : 
+                        '<span class="no-rating">No ratings yet</span>';
+                    
+                    // Get location mode status and user location from pandalSearch instance
+                    const isLocationMode = pandalSearch ? pandalSearch.isLocationMode : false;
+                    const userLocation = pandalSearch ? pandalSearch.userLocation : null;
+                    
+                    const distanceInfo = isLocationMode && userLocation && pandal.lat && pandal.lon ?
+                        `<div class="distance-badge">
+                            <i class="fas fa-map-marker-alt"></i>
+                            ${calculateDistance(userLocation.lat, userLocation.lng, pandal.lat, pandal.lon).toFixed(1)} km away
+                        </div>` : '';
+                    
+                    // Features list
+                    const featuresList = pandal.special_features && pandal.special_features.length > 0 ?
+                        pandal.special_features.map(feature => `<span class="feature-tag">${feature}</span>`).join('') :
+                        '<span class="no-features">No special features listed</span>';
+                    
+                    // Facilities list
+                    const facilitiesList = pandal.facilities && pandal.facilities.length > 0 ?
+                        pandal.facilities.map(facility => `<li><i class="fas fa-check"></i> ${facility}</li>`).join('') :
+                        '<li class="no-facilities">Facilities information not available</li>';
+                    
+                    // Contact info
+                    const contactInfo = pandal.contact_number ?
+                        `<div class="contact-item">
+                            <i class="fas fa-phone"></i>
+                            <span>${pandal.contact_number}</span>
+                        </div>` : '';
+                    
+                    const websiteInfo = pandal.website ?
+                        `<div class="contact-item">
+                            <i class="fas fa-globe"></i>
+                            <a href="http://${pandal.website}" target="_blank">${pandal.website}</a>
+                        </div>` : '';
+                    
+                    detailsContainer.innerHTML = `
+                        <div class="pandal-full-details bookmyshow-style">
+                            <!-- Header Section -->
+                            <div class="details-header">
+                                <div class="header-image">
+                                    <img src="${pandal.image || '/static/images/default-pandal.svg'}" alt="${pandal.name}" class="details-image">
+                                    ${distanceInfo}
+                                </div>
+                                <div class="header-info">
+                                    <div class="title-section">
+                                        <h1 class="pandal-title">${pandal.name}</h1>
+                                        <div class="subtitle-info">
+                                            <span class="theme-tag">${pandal.theme || 'Traditional'}</span>
+                                            ${pandal.established_year ? `<span class="year-tag">Est. ${pandal.established_year}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="rating-section">
+                                        ${ratingStars}
+                                        <span class="rating-count">(${pandal.rating_count || 0} reviews)</span>
+                                    </div>
+                                    
+                                    <div class="location-info">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span>${pandal.area || 'Location not specified'}</span>
+                                    </div>
+                                    
+                                    ${pandal.famous_for ? `<div class="famous-for"><strong>Famous for:</strong> ${pandal.famous_for}</div>` : ''}
+                                </div>
+                            </div>
+                            
+                            <!-- Main Content -->
+                            <div class="details-content">
+                                <div class="content-left">
+                                    <!-- About Section -->
+                                    <div class="content-section">
+                                        <h3><i class="fas fa-info-circle"></i> About This Pandal</h3>
+                                        <p class="history-text">${pandal.history || 'History and details about this pandal are not available at the moment.'}</p>
+                                    </div>
+                                    
+                                    <!-- Special Features -->
+                                    <div class="content-section">
+                                        <h3><i class="fas fa-star"></i> Special Features</h3>
+                                        <div class="features-container">
+                                            ${featuresList}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Facilities -->
+                                    <div class="content-section">
+                                        <h3><i class="fas fa-cogs"></i> Facilities</h3>
+                                        <ul class="facilities-list">
+                                            ${facilitiesList}
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="content-right">
+                                    <!-- Visit Information -->
+                                    <div class="info-card">
+                                        <h4><i class="fas fa-clock"></i> Visit Information</h4>
+                                        <div class="info-item">
+                                            <strong>Timings:</strong>
+                                            <span>${pandal.opening_time || '08:00'} - ${pandal.closing_time || '22:00'}</span>
+                                        </div>
+                                        ${pandal.best_time_to_visit ? `
+                                        <div class="info-item">
+                                            <strong>Best Time to Visit:</strong>
+                                            <span>${pandal.best_time_to_visit}</span>
+                                        </div>` : ''}
+                                        ${pandal.expected_crowd ? `
+                                        <div class="info-item">
+                                            <strong>Expected Crowd:</strong>
+                                            <span class="crowd-level ${pandal.expected_crowd.toLowerCase()}">${pandal.expected_crowd}</span>
+                                        </div>` : ''}
+                                    </div>
+                                    
+                                    <!-- Contact Information -->
+                                    ${contactInfo || websiteInfo ? `
+                                    <div class="info-card">
+                                        <h4><i class="fas fa-address-book"></i> Contact Information</h4>
+                                        ${contactInfo}
+                                        ${websiteInfo}
+                                    </div>` : ''}
+                                    
+                                    <!-- Address -->
+                                    <div class="info-card">
+                                        <h4><i class="fas fa-map-marker-alt"></i> Address</h4>
+                                        <p class="address-text">${pandal.address || 'Complete address not available'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="action-buttons">
+                                <button class="btn btn-primary btn-large" onclick="openDirectionsInMap(${pandal.lat}, ${pandal.lon}, '${pandal.name}')">
+                                    <i class="fas fa-directions"></i> Get Directions
+                                </button>
+                                <button class="btn btn-secondary btn-large" onclick="viewOnMap(${pandal.lat}, ${pandal.lon}, '${pandal.name}')">
+                                    <i class="fas fa-map"></i> View on Map
+                                </button>
+                                <button class="btn btn-outline btn-large" onclick="shareLocation('${pandal.name}', ${pandal.lat}, ${pandal.lon})">
+                                    <i class="fas fa-share"></i> Share
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    modal.style.display = "block";
+                    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+                })
+                .catch(error => {
+                    console.error('Error loading pandal details:', error);
+                    alert('Error loading pandal details. Please try again.');
+                });
         }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('pandal-modal');
-            if (event.target == modal) {
-                modal.style.display = "none";
+        
+        // Function to open directions in map modal
+        function openDirectionsInMap(lat, lon, name) {
+            // Close the pandal details modal first
+            document.getElementById('pandal-modal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            
+            // Open map modal and get directions
+            const mapModal = document.getElementById('mapModal');
+            mapModal.style.display = 'block';
+            
+            if (!window.map) {
+                initMap();
+            }
+            
+            // Get directions after a small delay to ensure map is loaded
+            setTimeout(() => {
+                getDirections(lat, lon);
+            }, 500);
+        }
+        
+        // Generate star rating HTML
+        function generateStarRating(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            
+            let starsHtml = '';
+            
+            // Full stars
+            for (let i = 0; i < fullStars; i++) {
+                starsHtml += '<i class="fas fa-star"></i>';
+            }
+            
+            // Half star
+            if (hasHalfStar) {
+                starsHtml += '<i class="fas fa-star-half-alt"></i>';
+            }
+            
+            // Empty stars
+            for (let i = 0; i < emptyStars; i++) {
+                starsHtml += '<i class="far fa-star"></i>';
+            }
+            
+            return `<div class="star-rating">${starsHtml} <span class="rating-value">${rating.toFixed(1)}</span></div>`;
+        }
+        
+        // View pandal on map
+        function viewOnMap(lat, lon, name) {
+            const mapModal = document.getElementById('mapModal');
+            mapModal.style.display = 'block';
+            
+            if (!window.map) {
+                initMap();
+            }
+            
+            // Center map on pandal
+            map.setView([lat, lon], 16);
+            
+            // Close pandal details modal
+            document.getElementById('pandal-modal').style.display = 'none';
+        }
+        
+        // Share location
+        function shareLocation(name, lat, lon) {
+            if (navigator.share) {
+                navigator.share({
+                    title: name,
+                    text: `Check out ${name} on UtsavDarshan`,
+                    url: `${window.location.origin}/pandal/${lat},${lon}`
+                });
+            } else {
+                // Fallback to copying to clipboard
+                const url = `${window.location.origin}/pandal/${lat},${lon}`;
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Location link copied to clipboard!');
+                });
             }
         }
-
-        // Location search functionality
-        document.getElementById('location-search').addEventListener('input', function(e) {
-            // Add location search functionality here
-            // You can use Google Places API for location autocomplete
-        });
-
-        // Pandal search functionality
-        document.getElementById('pandal-search').addEventListener('input', function(e) {
-            const searchText = e.target.value.toLowerCase();
-            const cards = document.querySelectorAll('.pandal-card');
-            
-            cards.forEach(card => {
-                const title = card.querySelector('h3').textContent.toLowerCase();
-                if (title.includes(searchText)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
 
         // Map Modal Controls
         const mapModal = document.getElementById('mapModal');
         const viewMapBtn = document.getElementById('viewMapBtn');
         const closeMapModal = document.getElementById('closeMapModal');
 
-        viewMapBtn.addEventListener('click', () => {
-            mapModal.style.display = 'block';
-            // Initialize map if not already initialized
-            if (!window.map) {
-                initMap();
-            } else {
-                // Trigger a resize event to fix the map display in modal
-                window.map.invalidateSize();
-                
-                // Fit bounds to show all markers if they exist
-                if (window.markerCluster && window.markerCluster.getLayers().length > 0) {
-                    map.fitBounds(window.markerCluster.getBounds());
-                }
-            }
-        });
-
-        closeMapModal.addEventListener('click', () => {
+        // Centralized function to close map modal
+        function closeMapModalFunction() {
+            console.log('Closing map modal...');
             mapModal.style.display = 'none';
-        });
-
-        window.onclick = function(event) {
-            if (event.target === mapModal) {
-                mapModal.style.display = 'none';
+            
+            // Clean up any routes or directions
+            if (window.currentPandalRoute && window.map) {
+                window.map.removeLayer(window.currentPandalRoute);
+                window.currentPandalRoute = null;
+                console.log('Cleaned up route layer');
             }
-        };
+            
+            // Hide directions panel
+            const directionsPanel = document.getElementById('directions-panel');
+            if (directionsPanel) {
+                directionsPanel.style.display = 'none';
+                console.log('Hidden directions panel');
+            }
+            
+            // Reset body overflow
+            document.body.style.overflow = 'auto';
+        }
+
+        if (viewMapBtn) {
+            viewMapBtn.addEventListener('click', () => {
+                console.log('View Map button clicked'); // Debug log
+                mapModal.style.display = 'block';
+                
+                // Always refresh the map when opened
+                setTimeout(() => {
+                    // Initialize map if not already initialized
+                    if (!window.map) {
+                        console.log('Initializing map...'); // Debug log
+                        // Make sure initMap function is available
+                        if (typeof initMap === 'function') {
+                            initMap();
+                        } else {
+                            console.error('initMap function not found');
+                            alert('Map initialization failed. Please refresh the page.');
+                            return;
+                        }
+                    } else {
+                        console.log('Map already initialized, refreshing...'); // Debug log
+                        // Trigger a resize event to fix the map display in modal
+                        if (window.map && window.map.invalidateSize) {
+                            window.map.invalidateSize();
+                            
+                            // Force refresh of pandals on map - this is the key fix
+                            console.log('Force refreshing pandals on map...');
+                            
+                            // Clear existing markers first
+                            if (window.markerCluster) {
+                                window.markerCluster.clearLayers();
+                            }
+                            if (window.markers) {
+                                window.markers.forEach(marker => {
+                                    if (window.map.hasLayer(marker)) {
+                                        window.map.removeLayer(marker);
+                                    }
+                                });
+                                window.markers = [];
+                            }
+                            
+                            // Fetch pandals again
+                            if (typeof fetchPandals === 'function') {
+                                fetchPandals();
+                            } else {
+                                console.error('fetchPandals function not found');
+                            }
+                        }
+                    }
+                }, 100); // Reduced delay for better responsiveness
+            });
+        }
+
+        if (closeMapModal) {
+            closeMapModal.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                console.log('Close map modal clicked');
+                closeMapModalFunction();
+            });
+        }
+
+        // Close map modal when clicking outside (improved)
+        mapModal.addEventListener('click', function(event) {
+            // Only close if clicking directly on the modal background, not on content
+            if (event.target === mapModal) {
+                console.log('Map modal background clicked, closing modal');
+                closeMapModalFunction();
+            }
+        });
+        
+        // Add escape key handler for map modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && mapModal.style.display === 'block') {
+                console.log('Escape key pressed, closing map modal');
+                closeMapModalFunction();
+            }
+        });
+        
+        // Initialize the search system when DOM loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing pandal search...');
+            // The pandal search system is initialized in pandal-search.js
+        });
     </script>
 </body>
 </html>

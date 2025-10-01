@@ -289,20 +289,227 @@ def register_pandal():
     return render_template('register_pandal.html')
 
 # API Endpoints
-@app.route('/api/pandals', methods=['GET'])
-def api_get_pandals():
-    results = []
-    for p in pandals.find():
-        results.append({
-            "id": str(p["_id"]),
-            "name": p.get("name"),
-            "theme": p.get("theme"),
-            "idol_type": p.get("idol_type"),
-            "area": p.get("area"),
-            "lat": p["location"]["coordinates"][1] if "location" in p else None,
-            "lon": p["location"]["coordinates"][0] if "location" in p else None
+# Enhanced API Endpoints for search and filtering
+@app.route('/api/pandals/enhanced', methods=['GET'])
+def api_get_enhanced_pandals():
+    try:
+        # Get query parameters
+        search_query = request.args.get('search', '').strip()
+        area_filter = request.args.get('area', '')
+        theme_filter = request.args.get('theme', '')
+        rating_filter = request.args.get('rating', '')
+        sort_by = request.args.get('sort', 'name')
+        user_lat = request.args.get('lat', type=float)
+        user_lng = request.args.get('lng', type=float)
+        
+        # Build MongoDB query
+        query = {}
+        
+        # Search query (text search across name, area, theme, address)
+        if search_query:
+            query['$or'] = [
+                {'name': {'$regex': search_query, '$options': 'i'}},
+                {'area': {'$regex': search_query, '$options': 'i'}},
+                {'theme': {'$regex': search_query, '$options': 'i'}},
+                {'address': {'$regex': search_query, '$options': 'i'}}
+            ]
+        
+        # Area filter
+        if area_filter:
+            query['area'] = area_filter
+        
+        # Theme filter
+        if theme_filter:
+            query['theme'] = theme_filter
+        
+        # Get pandals from database
+        pandal_cursor = pandals.find(query)
+        pandal_list = list(pandal_cursor)
+        
+        # Calculate distances for all pandals if user location provided
+        enhanced_pandals = []
+        for pandal in pandal_list:
+            # Calculate average rating
+            pandal_ratings = list(ratings.find({'pandal_id': str(pandal['_id'])}))
+            if pandal_ratings:
+                avg_rating = sum(r['rating'] for r in pandal_ratings) / len(pandal_ratings)
+                rating_count = len(pandal_ratings)
+            else:
+                avg_rating = 0
+                rating_count = 0
+            
+            # Calculate distance if user location provided
+            distance = None
+            if user_lat and user_lng and 'location' in pandal:
+                try:
+                    pandal_location = (pandal['location']['coordinates'][1], pandal['location']['coordinates'][0])
+                    user_location = (user_lat, user_lng)
+                    distance = geodesic(user_location, pandal_location).kilometers
+                except:
+                    distance = None
+            
+            enhanced_pandal = {
+                '_id': str(pandal['_id']),
+                'id': str(pandal['_id']),
+                'name': pandal.get('name', ''),
+                'theme': pandal.get('theme', 'Traditional'),
+                'idol_type': pandal.get('idol_type', ''),
+                'area': pandal.get('area', ''),
+                'address': pandal.get('address', ''),
+                'opening_time': pandal.get('opening_time', '08:00'),
+                'closing_time': pandal.get('closing_time', '22:00'),
+                'image': pandal.get('image', ''),
+                'lat': pandal['location']['coordinates'][1] if 'location' in pandal else None,
+                'lon': pandal['location']['coordinates'][0] if 'location' in pandal else None,
+                'average_rating': round(avg_rating, 1) if avg_rating > 0 else None,
+                'rating_count': rating_count,
+                'distance': round(distance, 2) if distance else None,
+                'visit_count': 0,  # TODO: Implement visit counting
+                'history': pandal.get('history', ''),  # Add history field
+                'established_year': pandal.get('established_year', ''),  # Add established year
+                'special_features': pandal.get('special_features', [])  # Add special features
+            }
+            
+            # Apply rating filter
+            if rating_filter and (not enhanced_pandal['average_rating'] or enhanced_pandal['average_rating'] < float(rating_filter)):
+                continue
+                
+            enhanced_pandals.append(enhanced_pandal)
+        
+        # Sort results - IMPORTANT: Distance sorting should be in ascending order (closest first)
+        if sort_by == 'distance' and user_lat and user_lng:
+            enhanced_pandals.sort(key=lambda x: x['distance'] if x['distance'] is not None else float('inf'))
+        elif sort_by == 'rating':
+            enhanced_pandals.sort(key=lambda x: x['average_rating'] if x['average_rating'] else 0, reverse=True)
+        elif sort_by == 'popularity':
+            enhanced_pandals.sort(key=lambda x: x['visit_count'], reverse=True)
+        else:  # name
+            enhanced_pandals.sort(key=lambda x: x['name'])
+        
+        # Get unique areas for filter dropdown
+        areas_cursor = pandals.distinct('area')
+        unique_areas = [area for area in areas_cursor if area]
+        unique_areas.sort()
+        
+        return jsonify({
+            'pandals': enhanced_pandals,
+            'areas': unique_areas,
+            'total_count': len(enhanced_pandals)
         })
-    return jsonify(results)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pandals/search', methods=['GET'])
+def api_search_pandals():
+    """Search pandals with autocomplete suggestions"""
+    try:
+        query = request.args.get('q', '').strip()
+        limit = request.args.get('limit', 10, type=int)
+        
+        if not query:
+            return jsonify({'suggestions': []})
+        
+        # Search in pandal names and areas
+        search_results = pandals.find({
+            '$or': [
+                {'name': {'$regex': f'^{query}', '$options': 'i'}},
+                {'area': {'$regex': f'^{query}', '$options': 'i'}},
+                {'theme': {'$regex': f'^{query}', '$options': 'i'}}
+            ]
+        }).limit(limit)
+        
+        suggestions = []
+        for pandal in search_results:
+            suggestions.extend([
+                {'type': 'pandal', 'text': pandal['name'], 'id': str(pandal['_id'])},
+                {'type': 'area', 'text': pandal.get('area', ''), 'area': pandal.get('area', '')},
+                {'type': 'theme', 'text': pandal.get('theme', ''), 'theme': pandal.get('theme', '')}
+            ])
+        
+        # Remove duplicates and empty entries
+        unique_suggestions = []
+        seen = set()
+        for suggestion in suggestions:
+            if suggestion['text'] and suggestion['text'] not in seen:
+                unique_suggestions.append(suggestion)
+                seen.add(suggestion['text'])
+        
+        return jsonify({'suggestions': unique_suggestions[:limit]})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pandals/nearby-enhanced', methods=['GET'])
+def get_nearby_pandals_enhanced():
+    """Enhanced nearby pandals with detailed information"""
+    try:
+        lat = float(request.args.get("lat"))
+        lon = float(request.args.get("lon"))
+        radius = int(request.args.get("radius", 5000))  # meters
+        limit = int(request.args.get("limit", 20))
+        user_location = (lat, lon)
+
+        nearby = pandals.find({
+            "location": {
+                "$nearSphere": {
+                    "$geometry": {"type": "Point", "coordinates": [lon, lat]},
+                    "$maxDistance": radius
+                }
+            }
+        }).limit(limit)
+
+        results = []
+        for p in nearby:
+            pandal_location = (p["location"]["coordinates"][1], p["location"]["coordinates"][0])
+            distance = geodesic(user_location, pandal_location).kilometers
+            
+            # Get ratings
+            pandal_ratings = list(ratings.find({'pandal_id': str(p['_id'])}))
+            avg_rating = sum(r['rating'] for r in pandal_ratings) / len(pandal_ratings) if pandal_ratings else 0
+            
+            # Get estimated duration using OSRM
+            try:
+                osrm_url = f"https://router.project-osrm.org/route/v1/driving/{lon},{lat};{p['location']['coordinates'][0]},{p['location']['coordinates'][1]}?overview=false"
+                response = requests.get(osrm_url, timeout=5)
+                if response.status_code == 200:
+                    route_data = response.json()
+                    if route_data['routes']:
+                        duration = f"{int(route_data['routes'][0]['duration'] / 60)} mins"
+                    else:
+                        duration = None
+                else:
+                    duration = None
+            except:
+                duration = None
+
+            results.append({
+                "id": str(p["_id"]),
+                "name": p["name"],
+                "area": p.get("area", ""),
+                "theme": p.get("theme", "Traditional"),
+                "distance": round(distance, 2),
+                "duration": duration,
+                "average_rating": round(avg_rating, 1) if avg_rating > 0 else None,
+                "rating_count": len(pandal_ratings),
+                "lat": pandal_location[0],
+                "lon": pandal_location[1],
+                "opening_time": p.get("opening_time", "08:00"),
+                "closing_time": p.get("closing_time", "22:00"),
+                "image": p.get("image", "")
+            })
+
+        # Sort by distance
+        results.sort(key=lambda x: x['distance'])
+
+        return jsonify({
+            'pandals': results,
+            'user_location': {'lat': lat, 'lng': lon},
+            'search_radius': radius
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/pandals/<pandal_id>', methods=['GET'])
 def api_get_pandal(pandal_id):
@@ -310,6 +517,10 @@ def api_get_pandal(pandal_id):
         pandal = pandals.find_one({"_id": ObjectId(pandal_id)})
         if not pandal:
             return jsonify({"error": "Pandal not found"}), 404
+        
+        # Get ratings for this pandal
+        pandal_ratings = list(ratings.find({'pandal_id': pandal_id}))
+        avg_rating = sum(r['rating'] for r in pandal_ratings) / len(pandal_ratings) if pandal_ratings else 0
         
         result = {
             "id": str(pandal["_id"]),
@@ -320,8 +531,26 @@ def api_get_pandal(pandal_id):
             "address": pandal.get("address"),
             "opening_time": pandal.get("opening_time"),
             "closing_time": pandal.get("closing_time"),
+            "image": pandal.get("image"),
             "lat": pandal["location"]["coordinates"][1] if "location" in pandal else None,
-            "lon": pandal["location"]["coordinates"][0] if "location" in pandal else None
+            "lon": pandal["location"]["coordinates"][0] if "location" in pandal else None,
+            "average_rating": round(avg_rating, 1) if avg_rating > 0 else None,
+            "rating_count": len(pandal_ratings),
+            "history": pandal.get("history", ""),
+            "established_year": pandal.get("established_year", ""),
+            "special_features": pandal.get("special_features", []),
+            "famous_for": pandal.get("famous_for", ""),
+            "facilities": pandal.get("facilities", []),
+            "contact_number": pandal.get("contact_number", ""),
+            "website": pandal.get("website", ""),
+            "expected_crowd": pandal.get("expected_crowd", ""),
+            "best_time_to_visit": pandal.get("best_time_to_visit", ""),
+            "ratings": [{
+                "rating": r['rating'],
+                "comment": r.get('comment', ''),
+                "user_id": r.get('user_id', ''),
+                "created_at": r.get('created_at', '')
+            } for r in pandal_ratings]
         }
         return jsonify(result)
     except Exception as e:

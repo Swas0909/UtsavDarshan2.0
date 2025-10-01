@@ -61,6 +61,8 @@ const icons = {
 
 // Initialize the map
 function initMap() {
+    console.log('Initializing map...');
+    
     // Make sure the map container exists
     const mapContainer = document.getElementById('map');
     if (!mapContainer) {
@@ -68,17 +70,45 @@ function initMap() {
         return;
     }
 
+    // If map already exists, clean up and refresh
+    if (window.map) {
+        console.log('Map already initialized, cleaning up and refreshing...');
+        
+        // Clear existing markers
+        if (window.markerCluster) {
+            window.markerCluster.clearLayers();
+        }
+        if (markers && markers.length > 0) {
+            markers.forEach(marker => {
+                if (window.map.hasLayer(marker)) {
+                    window.map.removeLayer(marker);
+                }
+            });
+            markers = [];
+        }
+        
+        // Refresh pandals and fit bounds
+        fetchPandals();
+        return;
+    }
+
     // Default center (Mumbai)
     const defaultCenter = [19.0760, 72.8777];
     
     // Initialize the map
-    map = L.map('map', {
+    window.map = L.map('map', {
         center: defaultCenter,
-        zoom: 12,
+        zoom: 11,
         minZoom: 3,
         maxZoom: 18,
         zoomControl: false // We'll add it in a custom position
     });
+    
+    // Store reference for global access
+    map = window.map;
+    window.markers = markers; // Make markers globally accessible
+    
+    console.log('Map initialized successfully');
     
     // Add the tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -97,6 +127,9 @@ function initMap() {
         zoomToBoundsOnClick: true
     });
     map.addLayer(markerCluster);
+    
+    // Store reference for global access
+    window.markerCluster = markerCluster;
 
     // Add location control
     L.control.locate({
@@ -125,10 +158,10 @@ function initMap() {
         }
     }).addTo(map);
 
-    // Get user's location
+    // Get user's location (optional)
     getUserLocation();
     
-    // Fetch pandals and add markers
+    // Fetch pandals and add markers - THIS IS THE KEY FIX
     fetchPandals();
     
     // Add event listeners for POI toggles
@@ -142,16 +175,38 @@ function initMap() {
                 if (mutation.attributeName === 'style' && 
                     mapModal.style.display === 'block') {
                     setTimeout(() => {
-                        map.invalidateSize();
-                        if (markers.length > 0) {
-                            map.fitBounds(markerCluster.getBounds());
+                        if (map && map.invalidateSize) {
+                            map.invalidateSize();
+                            console.log('Map invalidated and refreshed');
+                            
+                            // Force reload pandals when map modal opens
+                            fetchPandals();
+                            
+                            // Ensure all pandals are visible after loading
+                            setTimeout(() => {
+                                if (markerCluster && markerCluster.getLayers().length > 0) {
+                                    const bounds = markerCluster.getBounds();
+                                    if (bounds.isValid()) {
+                                        map.fitBounds(bounds, { padding: [20, 20] });
+                                        console.log('Map bounds fitted to show all pandals');
+                                    } else {
+                                        console.log('Invalid bounds, using default view');
+                                        map.setView([19.0760, 72.8777], 11);
+                                    }
+                                } else {
+                                    console.log('No markers found, using default Mumbai view');
+                                    map.setView([19.0760, 72.8777], 11);
+                                }
+                            }, 1000);
                         }
-                    }, 100);
+                    }, 300);
                 }
             });
         });
         observer.observe(mapModal, { attributes: true });
     }
+    
+    console.log('Map initialization completed');
 }
 
 // Get user's location
@@ -185,32 +240,80 @@ function getUserLocation() {
 
 // Fetch pandals from the backend
 function fetchPandals() {
-    fetch('/api/pandals')
-        .then(response => response.json())
-        .then(pandals => {
+    console.log('Fetching pandals for map display...');
+    
+    // Use the enhanced API endpoint that works correctly
+    fetch('/api/pandals/enhanced')
+        .then(response => {
+            console.log('API response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received pandals data:', data);
+            const pandals = data.pandals || data; // Handle both response formats
+            
             // Clear existing markers
-            markers.forEach(marker => map.removeLayer(marker));
+            markers.forEach(marker => {
+                if (map.hasLayer(marker)) {
+                    map.removeLayer(marker);
+                }
+            });
             markers = [];
             
             // Clear marker cluster
-            markerCluster.clearLayers();
+            if (markerCluster) {
+                markerCluster.clearLayers();
+            }
             
-            pandals.forEach(pandal => {
+            console.log(`Processing ${pandals.length} pandals for map display`);
+            
+            pandals.forEach((pandal, index) => {
                 if (pandal.lat && pandal.lon) {
-                    const marker = addPandalMarker(pandal);
-                    markerCluster.addLayer(marker);
+                    try {
+                        const marker = addPandalMarker(pandal);
+                        if (marker && markerCluster) {
+                            markerCluster.addLayer(marker);
+                        }
+                    } catch (error) {
+                        console.error(`Error adding marker for pandal ${pandal.name}:`, error);
+                    }
+                } else {
+                    console.warn(`Pandal ${pandal.name} has no coordinates:`, pandal);
                 }
             });
-
+            
+            console.log(`Added ${markers.length} markers to the map`);
+            
             // Create heatmap layer if we have the plugin
             if (typeof L.heatLayer === 'function') {
                 createHeatmap(pandals);
             }
+            
+            // Fit map to show all markers after a short delay
+            setTimeout(() => {
+                if (markerCluster && markerCluster.getLayers().length > 0) {
+                    console.log('Fitting map bounds to show all pandals');
+                    map.fitBounds(markerCluster.getBounds(), { padding: [20, 20] });
+                } else {
+                    console.log('No markers to fit bounds, using default Mumbai view');
+                    map.setView([19.0760, 72.8777], 11);
+                }
+            }, 500);
+        })
+        .catch(error => {
+            console.error('Error fetching pandals:', error);
+            // Fallback to default view
+            map.setView([19.0760, 72.8777], 11);
         });
 }
 
 // Add a marker for a pandal
 function addPandalMarker(pandal) {
+    console.log('Adding marker for pandal:', pandal.name);
+    
     const marker = L.marker([pandal.lat, pandal.lon], {
         icon: icons.pandal,
         title: pandal.name
@@ -222,23 +325,25 @@ function addPandalMarker(pandal) {
         <div class="info-window">
             <h3>${pandal.name}</h3>
             <p><strong>Theme:</strong> ${pandal.theme || 'Traditional'}</p>
-            <p><strong>Idol Type:</strong> ${pandal.idol_type || 'N/A'}</p>
             <p><strong>Area:</strong> ${pandal.area || 'N/A'}</p>
             <p><strong>Timings:</strong> ${pandal.opening_time || '08:00'} - ${pandal.closing_time || '22:00'}</p>
+            ${pandal.average_rating ? `<p><strong>Rating:</strong> ${pandal.average_rating} ⭐ (${pandal.rating_count || 0} reviews)</p>` : ''}
+            ${pandal.distance ? `<p><strong>Distance:</strong> ${pandal.distance} km away</p>` : ''}
             <div class="info-window-buttons">
                 <button onclick="getDirections(${pandal.lat}, ${pandal.lon})">Get Directions</button>
-                <button onclick="showInteractiveMap('${pandal.id}')">Interactive Map</button>
+                <button onclick="showPandalDetails('${pandal._id || pandal.id}')">View Details</button>
             </div>
-            <div id="nearby-${pandal.id}">Loading nearby services...</div>
         </div>
     `;
 
     marker.bindPopup(contentString);
+    
     marker.on('click', () => {
         if (currentPandalRoute) {
             map.removeLayer(currentPandalRoute);
         }
-        fetchNearbyPOIs(pandal.lat, pandal.lon, pandal.id);
+        // Optional: fetch nearby POIs
+        // fetchNearbyPOIs(pandal.lat, pandal.lon, pandal._id || pandal.id);
         highlightRoute([pandal.lat, pandal.lon]);
     });
 
@@ -546,3 +651,9 @@ function updateNearbyPandals() {
 
 // Initialize map when the page loads
 window.addEventListener('load', initMap);
+
+// Make key functions globally accessible
+window.initMap = initMap;
+window.fetchPandals = fetchPandals;
+window.addPandalMarker = addPandalMarker;
+window.getDirections = getDirections;
