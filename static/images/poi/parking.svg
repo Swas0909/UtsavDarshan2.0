@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="25" height="25" viewBox="0 0 25 25" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12.5" cy="12.5" r="11.5" fill="#2ecc71" stroke="#27ae60" stroke-width="1"/>
+    <text x="12.5" y="16.5" font-family="Arial" font-size="14" fill="white" text-anchor="middle">P</text>
+</svg>

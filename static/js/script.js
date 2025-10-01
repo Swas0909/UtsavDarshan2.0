@@ -23,30 +23,19 @@ function initMapButtons() {
             // Show modal with map
             mapModal.style.display = 'block';
             
-            // Initialize map if Google Maps API is loaded
-            if (typeof google !== 'undefined') {
-                const mapOptions = {
-                    center: { lat, lng },
-                    zoom: 15,
-                };
-                const map = new google.maps.Map(mapContainer, mapOptions);
-                
-                // Add marker
-                new google.maps.Marker({
-                    position: { lat, lng },
-                    map: map,
-                    title: 'Pandal Location'
-                });
-            } else {
-                // Fallback if Google Maps API is not loaded
-                mapContainer.innerHTML = `
-                    <div class="map-fallback">
-                        <p>Map could not be loaded. Click the button below to view on Google Maps.</p>
-                        <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn">
-                            Open in Google Maps
-                        </a>
-                    </div>
-                `;
+            // Initialize Leaflet map
+            mapContainer.innerHTML = '<div id="leaflet-map" style="height: 400px;"></div>';
+            const map = L.map('leaflet-map').setView([lat, lng], 15);
+            
+            // Add OpenStreetMap tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Add marker
+            L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup('Pandal Location');
             }
         });
     });

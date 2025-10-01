@@ -6,6 +6,8 @@
     <title>UtsavDarshan - Locate Ganapati Pandals</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <header>
@@ -16,7 +18,12 @@
                     <a href="{{ url_for('index') }}" class="active">Home</a>
                     <a href="{{ url_for('locations') }}">Locations</a>
                     <a href="{{ url_for('register_pandal') }}">Register Pandal</a>
-                    <button class="login-btn"><i class="fas fa-user"></i> Login</button>
+                    {% if current_user.is_authenticated %}
+                        <span class="user-name">Welcome, {{ current_user.name }}!</span>
+                        <a href="{{ url_for('logout') }}" class="login-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="login-btn"><i class="fas fa-sign-in-alt"></i> Login with Google</a>
+                    {% endif %}
                 </div>
             </div>
         </nav>
@@ -37,39 +44,23 @@
 
         <section id="pandals" class="pandals slide-up">
             <div class="container">
-                <h2>Famous Ganapati Pandals</h2>
-                <div class="filter-container">
-                    <div class="search-box">
-                        <input type="text" id="pandal-search" placeholder="Search pandals...">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <div class="filter-options">
-                        <select id="filter-taluka">
-                            <option value="">All Talukas</option>
-                            {% for taluka in talukas %}
-                            <option value="{{ taluka.name }}">{{ taluka.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="cards">
+                <h2>Featured Ganapati Pandals</h2>
+                <div class="featured-cards">
                     {% for pandal in pandals %}
-                    <div class="card" data-taluka="{{ pandal.taluka }}">
+                    <div class="card">
                         <div class="card-image">
-                            <img src="{{ pandal.image }}" alt="{{ pandal.name }}">
-                            <div class="card-badge">{{ pandal.taluka }}</div>
+                            <img src="{{ pandal.image if pandal.image else url_for('static', filename='images/default-pandal.jpg') }}" alt="{{ pandal.name }}">
                         </div>
                         <div class="card-content">
                             <h3>{{ pandal.name }}</h3>
-                            <p class="card-description">{{ pandal.history[:100] }}...</p>
-                            <p class="card-timings"><i class="far fa-clock"></i> <strong>Timings:</strong> {{ pandal.timings }}</p>
-                            <div class="card-actions">
-                                <a href="{{ url_for('pandal_detail', pandal_id=pandal.id) }}" class="btn"><i class="fas fa-info-circle"></i> Details</a>
-                                <button class="btn map-btn" data-lat="{{ pandal.location.lat }}" data-lng="{{ pandal.location.lng }}"><i class="fas fa-map"></i> Map</button>
-                            </div>
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+                <div class="see-more-container">
+                    <a href="{{ url_for('all_pandals') }}" class="btn btn-primary">
+                        <i class="fas fa-eye"></i> See All Pandals
+                    </a>
                 </div>
             </div>
         </section>
@@ -85,16 +76,7 @@
                 </form>
                 <div id="feedback-message" class="hidden">Thank you for your feedback!</div>
             </div>
-            <div class="register">
-                <h3><i class="fas fa-plus-circle"></i> Quick Register</h3>
-                <form action="{{ url_for('register_pandal') }}" method="post" id="quick-register-form">
-                    <input type="text" name="name" placeholder="Pandal Name" required>
-                    <input type="text" name="location" placeholder="Location" required>
-                    <textarea name="details" placeholder="Details"></textarea>
-                    <button type="submit" class="btn"><i class="fas fa-check"></i> Register</button>
-                </form>
-                <div id="register-message" class="hidden">Registration submitted!</div>
-            </div>
+
             <div class="contact">
                 <h3><i class="fas fa-headset"></i> Contact Support</h3>
                 <p><i class="fas fa-envelope"></i> Email: support@utsavdarshan.com</p>
