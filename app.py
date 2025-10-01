@@ -68,7 +68,8 @@ def login():
         # Generate and store a new state parameter
         state = os.urandom(16).hex()
         session.permanent = True  # Make session permanent
-        session["oauth_state"] = state  # Don't clear entire session
+        # Store state in session under a unique key to avoid conflicts
+        session["oauth_state_login"] = state
         
         # Find out what URL to hit for Google login
         google_provider_cfg = get_google_provider_cfg()
@@ -80,7 +81,7 @@ def login():
         # Use library to construct the request for Google login
         request_uri = client.prepare_request_uri(
             authorization_endpoint,
-            redirect_uri="http://localhost:5000/login/callback",
+            redirect_uri=config.GOOGLE_REDIRECT_URI,
             scope=["openid", "email", "profile"],
             state=state
         )
@@ -94,7 +95,7 @@ def callback():
         # Get authorization code and state from Google
         code = request.args.get("code")
         received_state = request.args.get("state")
-        stored_state = session.get("oauth_state")
+        stored_state = session.get("oauth_state_login")
 
         # Debug logging
         print(f"Received state: {received_state}")
@@ -120,18 +121,19 @@ def callback():
         token_url, headers, body = client.prepare_token_request(
             token_endpoint,
             authorization_response=request.url,
-            redirect_url="http://localhost:5000/login/callback",
+            redirect_url=config.GOOGLE_REDIRECT_URI,
             code=code,
         )
-        
+
         token_response = requests.post(
             token_url,
             headers=headers,
             data=body,
             auth=(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET),
         )
-        
+
         if not token_response.ok:
+            print(f"Token response error: {token_response.status_code} - {token_response.json()}")
             return f"Failed to get token: {token_response.json()}", 400
 
     except Exception as e:
